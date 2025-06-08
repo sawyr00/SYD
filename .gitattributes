@@ -1,2 +1,2 @@
 # Auto detect text files and perform LF normalization, force LF endings
-* text=auto eol=lf
+* text=auto eol=l
