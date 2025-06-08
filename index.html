@@ -1,62 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>3D Model Viewer</title>
-  <style>
-    body {
-      margin: 0;<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>3D Model Viewer</title>
-  <link rel="stylesheet" href="style.css" />
+  <!-- link to your single stylesheet -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Import maps polyfill for older browsers -->
-  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <!-- 1) Preloader overlay -->
+  <div id="preloader">
+    <div class="spinner"></div>
+  </div>
 
-  <!-- Import map to define module paths -->
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/"
+  <!-- 2) Real content, hidden until everything loads -->
+  <div id="main-content" style="visibility:hidden;">
+    <!-- Import maps polyfill for older browsers -->
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+    <!-- Import map to define module paths -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/"
+        }
       }
-    }
+    </script>
+
+    <!-- Your main Three.js script -->
+    <script type="module" src="script.js"></script>
+  </div>
+
+  <!-- 3) Preloader logic -->
+  <script>
+    window.addEventListener('load', () => {
+      const pre   = document.getElementById('preloader');
+      const main  = document.getElementById('main-content');
+
+      // fade out
+      pre.classList.add('hidden');
+
+      // once transition ends, remove overlay & reveal content
+      pre.addEventListener('transitionend', () => {
+        pre.remove();
+        main.style.visibility = 'visible';
+      });
+    });
   </script>
-
-  <!-- Your main script -->
-  <script type="module" src="script.js"></script>
-
-</body>
-</html>
-
-      overflow: hidden;
-    }
-    canvas {
-      display: block;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Import maps polyfill for older browsers -->
-  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
-
-  <!-- Import map to define module paths -->
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/"
-      }
-    }
-  </script>
-
-  <!-- Your main script -->
-  <script type="module" src="script.js"></script>
 
 </body>
 </html>
