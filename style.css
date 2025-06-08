@@ -137,3 +137,11 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* TEMP: disable preloader */
+#preloader {
+  display: none !important;
+}
+#main-content {
+  visibility: visible !important;
+}
