@@ -16,6 +16,17 @@ function hidePreloader() {
   });
 }
 
+// Count how many models we expect to load: all rain objects + the main cartridge
+const EXPECTED_LOADS = rainModelUrls.length + 1;
+let loadCounter = 0;
+
+function assetLoaded() {
+  loadCounter++;
+  if (loadCounter >= EXPECTED_LOADS) {
+    hidePreloader();
+  }
+}
+
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -213,6 +224,7 @@ function spawnRainObject() {
     };
     scene.add(obj);
     rainObjects.push(obj);
+    assetLoaded();
   });
 }
 
@@ -280,8 +292,9 @@ loader.load(
     controls.target.set(0, 0, 0);
     controls.update();
 
-    // finally: hide the preloader overlay
-    hidePreloader();
+// instead of hidePreloader():
+assetLoaded();
+
   },
 
   // ───────────────────────────────────────────────────────
