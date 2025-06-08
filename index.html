@@ -33,22 +33,7 @@
     <script type="module" src="script.js"></script>
   </div>
 
-  <!-- 3) Preloader logic -->
-  <script>
-    window.addEventListener('load', () => {
-      const pre   = document.getElementById('preloader');
-      const main  = document.getElementById('main-content');
-
-      // fade out
-      pre.classList.add('hidden');
-
-      // once transition ends, remove overlay & reveal content
-      pre.addEventListener('transitionend', () => {
-        pre.remove();
-        main.style.visibility = 'visible';
-      });
-    });
-  </script>
+ 
 
 </body>
 </html>
