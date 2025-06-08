@@ -25,16 +25,16 @@ function hidePreloader() {
 // fires .onLoad() once every one of them completes.
 const manager = new THREE.LoadingManager();
 
-manager.onLoad = () => {
+//manager.onLoad = () => {
   // hide spinner only after every single asset has loaded
-  hidePreloader();
-};
+//  hidePreloader();
+//};
 
-manager.onError = url => {
-  console.warn(`Failed to load ${url}, continuing anyway…`);
+//manager.onError = url => {
+//  console.warn(`Failed to load ${url}, continuing anyway…`);
   // still hide the spinner so the page isn't stuck
-  hidePreloader();
-};
+//  hidePreloader();
+//};
 
 // ───────────────────────────────────────────────────────
 // 4) GLTF LOADER
