@@ -97,8 +97,15 @@ canvas {
 }
 
 /* ─────────────────────────────────────────────────────
-   Preloader overlay + spinner
+   Preloader overlay + spinner (append below your existing rules)
 ───────────────────────────────────────────────────── */
+
+/* restore your body’s black background (in case it was overridden) */
+body {
+  background-color: black;
+}
+
+/* the preloader covers the viewport */
 #preloader {
   position: fixed;
   top: 0; left: 0;
@@ -111,11 +118,13 @@ canvas {
   transition: opacity 0.5s ease;
 }
 
+/* when hidden, fade it out and let clicks through */
 #preloader.hidden {
   opacity: 0;
   pointer-events: none;
 }
 
+/* simple spinner */
 .spinner {
   border: 4px solid rgba(255,255,255,0.2);
   border-top: 4px solid #fff;
