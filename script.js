@@ -188,7 +188,7 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 
 // Load 3D Model
-const loader = new GLTFLoader();
+const loader = new GLTFLoader(manager);
 // ⬇️ Rain objects setup (insert here) ⬇️
 const rainModelUrls = [
   'models/b&b_candyshell_lavender.glb',
@@ -240,7 +240,6 @@ function spawnRainObject() {
     };
     scene.add(obj);
     rainObjects.push(obj);
-    assetLoaded();
   });
 }
 
@@ -248,7 +247,7 @@ for (let i = 0; i < 50; i++) {
   spawnRainObject();
 }
 
-loader.load(
+function assetLoaded() {(
   'models/n64cartridge1.glb',
 
   // ───────────────────────────────────────────────────────
@@ -309,7 +308,6 @@ loader.load(
     controls.update();
 
 // instead of hidePreloader():
-assetLoaded();
 
   },
 
