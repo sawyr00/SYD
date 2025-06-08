@@ -1,10 +1,12 @@
-// Import dependencies
-import * as THREE from 'three';
+// ───────────────────────────────────────────────────────
+// 1) IMPORTS
+// ───────────────────────────────────────────────────────
+import * as THREE    from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
 
 // ───────────────────────────────────────────────────────
-// Call this once your 3D assets are fully in place
+// 2) PRELOADER HIDING
 // ───────────────────────────────────────────────────────
 function hidePreloader() {
   const pre  = document.getElementById('preloader');
@@ -16,19 +18,33 @@ function hidePreloader() {
   });
 }
 
-// Count how many models we expect to load: all rain objects + the main cartridge
-const EXPECTED_LOADS = rainModelUrls.length + 1;
-let loadCounter = 0;
+// ───────────────────────────────────────────────────────
+// 3) LOADING MANAGER
+// ───────────────────────────────────────────────────────
+// This manager tracks **all** loader.load() calls and
+// fires .onLoad() once every one of them completes.
+const manager = new THREE.LoadingManager();
 
-function assetLoaded() {
-  loadCounter++;
-  if (loadCounter >= EXPECTED_LOADS) {
-    hidePreloader();
-  }
-}
+manager.onLoad = () => {
+  // hide spinner only after every single asset has loaded
+  hidePreloader();
+};
 
+manager.onError = url => {
+  console.warn(`Failed to load ${url}, continuing anyway…`);
+  // still hide the spinner so the page isn't stuck
+  hidePreloader();
+};
 
-// Scene setup
+// ───────────────────────────────────────────────────────
+// 4) GLTF LOADER
+// ───────────────────────────────────────────────────────
+// Pass our manager into the loader so it tracks all loads
+const loader = new GLTFLoader(manager);
+
+// ───────────────────────────────────────────────────────
+// 5) SCENE SETUP
+// ───────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -37,7 +53,7 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 
-camera.fov = 30;              // less distortion
+camera.fov = 30; // less distortion
 camera.updateProjectionMatrix();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -46,15 +62,15 @@ document.body.appendChild(renderer.domElement);
 
 // Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-
-// — Improved Lighting Setup —
+controls.enableDamping   = true;
+controls.dampingFactor   = 0.05;
 
 // Enable shadow maps on the renderer
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
 
+// …and now your rain‐spawning and main‐model loader calls will all be
+// tracked by the manager above—no further preloader logic needed in those callbacks.
 
 // Softer ambient fill
 scene.add(new THREE.AmbientLight(0xFF99AA, 0.2));
