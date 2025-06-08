@@ -247,11 +247,11 @@ for (let i = 0; i < 50; i++) {
   spawnRainObject();
 }
 
-function assetLoaded() {(
+loader.load(
   'models/n64cartridge1.glb',
 
   // ───────────────────────────────────────────────────────
-  // onLoad: all setup, then hide the preloader
+  // onLoad: all setup, then LoadingManager hides preloader
   // ───────────────────────────────────────────────────────
   gltf => {
     model = gltf.scene;
@@ -306,24 +306,21 @@ function assetLoaded() {(
     camera.position.set(0, 0, defaultCameraZ);
     controls.target.set(0, 0, 0);
     controls.update();
-
-// instead of hidePreloader():
-
   },
 
   // ───────────────────────────────────────────────────────
-  // onProgress: unused
+  // onProgress: (unused)
   // ───────────────────────────────────────────────────────
   undefined,
 
   // ───────────────────────────────────────────────────────
-  // onError: remove preloader even on failure
+  // onError: log and allow LoadingManager to hide preloader
   // ───────────────────────────────────────────────────────
   err => {
     console.error('Failed to load main model:', err);
-    hidePreloader();
   }
 );
+
 
 // Window resize
 window.addEventListener('resize', () => {
