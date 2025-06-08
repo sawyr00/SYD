@@ -43,7 +43,7 @@ manager.onError = url => {
 // 4) GLTF LOADER
 // ───────────────────────────────────────────────────────
 // Pass our manager into the loader so it tracks all loads
-const loader = new GLTFLoader(manager);
+//const loader = new GLTFLoader(manager);
 
 // ───────────────────────────────────────────────────────
 // 5) SCENE SETUP
