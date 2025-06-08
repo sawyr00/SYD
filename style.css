@@ -1,0 +1,97 @@
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: black;
+}
+
+canvas {
+  display: block;
+}
+
+.gui-button {
+  position: absolute;
+  top: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 99;
+}
+
+#playPauseBtn {
+  left: 10px;
+}
+
+#nextBtn {
+  left: 60px;
+}
+
+#prevBtn {
+  left: 110px;
+}
+
+#muteBtn {
+  left: 160px;
+}
+
+#recenterBtn {
+  right: 10px;
+}
+
+.gui-button img {
+  width: 40px;
+  height: 40px;
+}
+
+#nowPlayingWrapper {
+  position: fixed;
+  top: 40px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+}
+
+#nowPlayingText {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 18px;
+  color: #7fff7f;
+  white-space: nowrap;
+  max-width: 80%;
+  overflow: hidden;
+  position: relative;
+  text-align: center;
+}
+
+#nowPlayingText span {
+  display: inline-block;
+  padding: 0 10px;
+  transition: opacity 0.3s;
+}
+
+.side-track {
+  opacity: 0.4;
+}
+
+#nowPlayingText::before,
+#nowPlayingText::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50px;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+#nowPlayingText::before {
+  left: 0;
+  background: linear-gradient(to right, black, transparent);
+}
+
+#nowPlayingText::after {
+  right: 0;
+  background: linear-gradient(to left, black, transparent);
+}
