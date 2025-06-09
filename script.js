@@ -252,28 +252,33 @@ loader.load(
     'color',
     new THREE.InstancedBufferAttribute(colorArray, 3)
   );
-  rainMesh.material.vertexColors = true;
-// ─── USE THE instanceOpacity ATTRIBUTE ─────────────────
-/*
-rainMesh.material.onBeforeCompile = shader => {
-  // 1) declare our opacity attribute + a varying
-  shader.vertexShader =
-    `attribute float instanceOpacity;\n` +
-    `varying float vInstanceOpacity;\n` +
-    shader.vertexShader.replace(
-      /void\s+main\s*\(\s*\)\s*\{/,
-      `void main() {
-         vInstanceOpacity = instanceOpacity;`
-    );
-*/
-  // 2) multiply the final fragment alpha by it
-  shader.fragmentShader =
-    `varying float vInstanceOpacity;\n` +
-    shader.fragmentShader.replace(
-      /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
-      `$1\n    diffuseColor.a *= vInstanceOpacity;`
-    );
-};
+   rainMesh.material.vertexColors = true;
+-// ─── USE THE instanceOpacity ATTRIBUTE ─────────────────
+-/*
+-rainMesh.material.onBeforeCompile = shader => {
+-  // 1) declare our opacity attribute + a varying
+-  shader.vertexShader =
+-    `attribute float instanceOpacity;\n` +
+-    `varying float vInstanceOpacity;\n` +
+-    shader.vertexShader.replace(
+-      /void\s+main\s*\(\s*\)\s*\{/,
+-      `void main() {
+-         vInstanceOpacity = instanceOpacity;`
+-    );
+-*/
+-  // 2) multiply the final fragment alpha by it
+-  shader.fragmentShader =
+-    `varying float vInstanceOpacity;\n` +
+-    shader.fragmentShader.replace(
+-      /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
+-      `$1\n    diffuseColor.a *= vInstanceOpacity;`
+-    );
+-};
++// ─── TEMPORARILY DISABLE onBeforeCompile PATCH ────────────
++// rainMesh.material.onBeforeCompile = shader => {
++//   // … your shader injections …
++// };
+
 
 
 }
