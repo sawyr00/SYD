@@ -242,33 +242,13 @@ loader.load(
     col.toArray(colorArray, i * 3);
   }
   // store it on the geometry
+   // use the built‐in “color” attribute instead of a custom one
   rainMesh.geometry.setAttribute(
-    'instanceColor',
+    'color',
     new THREE.InstancedBufferAttribute(colorArray, 3)
   );
-
-  // now patch the material’s shader to use that attribute:
-  rainMesh.material.onBeforeCompile = shader => {
-    // inject a varying
-    shader.vertexShader =
-      `attribute vec3 instanceColor;\nvarying vec3 vInstanceColor;\n` +
-      shader.vertexShader.replace(
-        `void main() {`,
-        `void main() {
-           vInstanceColor = instanceColor;
-         `
-      );
-    // multiply the base color by our tint
-    shader.fragmentShader =
-      `varying vec3 vInstanceColor;\n` +
-      shader.fragmentShader.replace(
-        `vec4 diffuseColor = vec4( diffuse, opacity );`,
-        `vec4 diffuseColor = vec4( diffuse * vInstanceColor, opacity );`
-      );
-  };
-
-  // enable vertex colors support
   rainMesh.material.vertexColors = true;
+
 }
 
 
