@@ -205,7 +205,7 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 // ───────────────────────────────────────────────────────
 @@ 4.1) RAIN INSTANCING SETUP
      // ───────────────────────────────────────────────────────
-{
+
       // build a flat array of RGB triples
       const colorArray = new Float32Array(RAIN_COUNT * 3);
       for (let i = 0; i < RAIN_COUNT; i++) {
@@ -243,28 +243,27 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
       };
 
 // ───────────────────────────────────────────────────────
-// 4.2) PER‐INSTANCE HUE ATTRIBUTE
 // ───────────────────────────────────────────────────────
-{
-  // build a flat array of RGB triples
-  const colorArray = new Float32Array(RAIN_COUNT * 3);
-  for (let i = 0; i < RAIN_COUNT; i++) {
-    // pick one of 5 hues, evenly spaced
-    const hue = (i % 5) / 5;
-    const col = new THREE.Color().setHSL(hue, 0.7, 0.5);
-    col.toArray(colorArray, i * 3);
-  }
-  // store it on the geometry
-   // use the built‐in “color” attribute instead of a custom one
-  rainMesh.geometry.setAttribute(
-    'color',
-    new THREE.InstancedBufferAttribute(colorArray, 3)
-  );
-   rainMesh.material.vertexColors = true;
--// ─── USE THE instanceOpacity ATTRIBUTE ─────────────────
+// 4.2) PER-INSTANCE HUE ATTRIBUTE + OPACITY PATCH
+// ───────────────────────────────────────────────────────
 
+// build a flat array of RGB triples
+const colorArray = new Float32Array(RAIN_COUNT * 3);
+for (let i = 0; i < RAIN_COUNT; i++) {
+  const hue = (i % 5) / 5;
+  new THREE.Color().setHSL(hue, 0.7, 0.5)
+    .toArray(colorArray, i * 3);
+}
+// install instance‐color attribute & enable vertexColors
+rainMesh.geometry.setAttribute(
+  'color',
+  new THREE.InstancedBufferAttribute(colorArray, 3)
+);
+rainMesh.material.vertexColors = true;
+
+// patch in per-instance opacity
 rainMesh.material.onBeforeCompile = shader => {
-  // 1) declare our opacity attribute + a varying
+  // 1) declare instanceOpacity + varying
   shader.vertexShader =
     `attribute float instanceOpacity;\n` +
     `varying float vInstanceOpacity;\n` +
@@ -274,22 +273,16 @@ rainMesh.material.onBeforeCompile = shader => {
          vInstanceOpacity = instanceOpacity;`
     );
 
-  // 2) now patch the fragment shader to multiply alpha
+  // 2) multiply the final fragment alpha
   shader.fragmentShader =
     `varying float vInstanceOpacity;\n` +
     shader.fragmentShader.replace(
       /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
       `$1\n    diffuseColor.a *= vInstanceOpacity;`
     );
-};  // <— this closes the onBeforeCompile
+};
 
-
-
-
-}
-
-
-    scene.add(rainMesh);
+scene.add(rainMesh);
 
     // initialize positions & opacities
     for (let i = 0; i < RAIN_COUNT; i++) {
