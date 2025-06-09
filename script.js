@@ -129,6 +129,8 @@ const SPAWN_XZ_RAD     = 50;    // ±range in X and Z
 const KILL_Y           = -30;   // when to remove them
 const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
 
+// alias for our instanced loop
+const RAIN_COUNT = RAIN_TOTAL;
 
 // ─── Instanced‐mesh globals ───
 let rainMesh;                   // hold the InstancedMesh if you ever use it
@@ -765,58 +767,6 @@ if (pulseActive) {
   });
 }
   
-
-  // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
-  if (rainMesh) {
-    const attrs = rainMesh.geometry.attributes;
-    const pos   = new THREE.Vector3();
-    const quat  = new THREE.Quaternion();
-    const scale = new THREE.Vector3();
-    const mat   = new THREE.Matrix4();
-
-    for (let i = 0; i < RAIN_COUNT; i++) {
-      // pull out this instance’s matrix
-      rainMesh.getMatrixAt(i, mat);
-      mat.decompose(pos, quat, scale);
-
-      // always reset scale so it doesn’t morph into a sphere
-   //   rainDummy.scale.set(1, 1, 1);
-
-      // fall
-      pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
-
-      // respawn if off‐bounds
-      if (pos.y <= KILL_Y) {
-    pos.y = THREE.MathUtils.randFloat(spawnYMin, spawnYMax);
-    pos.x = THREE.MathUtils.randFloatSpread(spawnXzRange);
-   pos.z = THREE.MathUtils.randFloatSpread(spawnXzRange);
-    }
-
-      // fade‐out as it approaches KILL_Y → FADE_Y
-      const fy = THREE.MathUtils.clamp(
-        1 - (FADE_Y - pos.y) / (FADE_Y - KILL_Y),
-        0, 1
-      );
-
-      // fade‐in from SPAWN_FADE_START → SPAWN_FADE_END
-      const fi = THREE.MathUtils.clamp(
-        (SPAWN_FADE_START - pos.y) / (SPAWN_FADE_START - SPAWN_FADE_END),
-        0, 1
-      );
-
-      const f = Math.min(fy, fi);
-
-      // write the updated matrix back
-      mat.compose(pos, quat, scale);
-      rainMesh.setMatrixAt(i, mat);
-
-      // update opacity attribute
-      attrs.instanceOpacity.array[i] = f;
-    }
-
-    attrs.instanceOpacity.needsUpdate  = true;
-    rainMesh.instanceMatrix.needsUpdate = true;
-  }
 
 
   // pulsation & BB-button
