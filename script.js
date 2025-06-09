@@ -209,11 +209,15 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 // ───────────────────────────────────────────────────────
 const RAIN_COUNT = 50;
 
+const spawnYMin    = 15;   // lowest Y a new drop can start at
+const spawnYMax    = 25;   // highest Y a new drop can start at
+const spawnXzRange = 40;   // total width/depth of the rain “box” (±20 in X/Z)
+
 // how far they fall before respawning:
-const KILL_Y           = -5;
-const FADE_Y           =  0;
-const SPAWN_FADE_START = 20;
-const SPAWN_FADE_END   = 10;
+const KILL_Y           =  0;
+const FADE_Y           =  5;
+const SPAWN_FADE_START = 25;
+const SPAWN_FADE_END   = 22;
 
 let rainMesh, rainDummy = new THREE.Object3D();
 
@@ -755,13 +759,17 @@ if (pulseActive) {
       mat.decompose(pos, quat, scale);
 
       // always reset scale so it doesn’t morph into a sphere
-      rainDummy.scale.set(1, 1, 1);
+   //   rainDummy.scale.set(1, 1, 1);
 
       // fall
       pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
 
       // respawn if off‐bounds
-      if (pos.y <= KILL_Y) pos.y = SPAWN_FADE_START;
+      if (pos.y <= KILL_Y) {
+    pos.y = THREE.MathUtils.randFloat(spawnYMin, spawnYMax);
+    pos.x = THREE.MathUtils.randFloatSpread(spawnXzRange);
+   pos.z = THREE.MathUtils.randFloatSpread(spawnXzRange);
+    }
 
       // fade‐out as it approaches KILL_Y → FADE_Y
       const fy = THREE.MathUtils.clamp(
