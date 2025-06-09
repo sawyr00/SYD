@@ -241,40 +241,47 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 
 // ───────────────────────────────────────────────────────
-// ───────────────────────────────────────────────────────
-// ─── 4.1) Rain spawn / kill logic (per-drop) ─────────────────
-const rainObjects = [];
+// ─── 4.1) RAIN INSTANCING SETUP ─────────────────────────
 
-function spawnRainObject() {
-  loader.load('models/b&b_candyshell_yellow.glb', gltf => {
-    const obj = gltf.scene.clone();
-    obj.traverse(m => {
-      if (m.isMesh) {
-        m.castShadow = m.receiveShadow = false;
-        m.material.transparent = true;
-        m.material.depthWrite = false;
-      }
-    });
-    // random start
-    obj.position.set(
+loader.load('models/b&b_candyshell_yellow.glb', gltf => {
+  const src = gltf.scene.getObjectByProperty('isMesh', true);
+  if (!src) return console.error('No mesh found!');
+
+  // extract geometry + material once
+  const geom = src.geometry;
+  const mat  = src.material.clone();
+  mat.transparent = true;
+  mat.depthWrite = false;          // allow proper alpha blending
+
+  // make an InstancedMesh of RAIN_TOTAL
+  rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_TOTAL);
+  rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene.add(rainMesh);
+
+  // per-instance opacity
+  const op = new Float32Array(RAIN_TOTAL).fill(0);
+  rainMesh.geometry.setAttribute(
+    'instanceOpacity',
+    new THREE.InstancedBufferAttribute(op, 1)
+  );
+
+  // helper dummy
+  rainDummy = new THREE.Object3D();
+
+  // initialize random positions & opacities
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    rainDummy.position.set(
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
       THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
     );
-    obj.userData = {
-      fallSpeed: THREE.MathUtils.randFloat(0.02, 0.1),
-      rotAxis: new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize(),
-      rotSpeed: THREE.MathUtils.randFloat(0.01, 0.05)
-    };
-    scene.add(obj);
-    rainObjects.push(obj);
-  });
-}
+    rainDummy.updateMatrix();
+    rainMesh.setMatrixAt(i, rainDummy.matrix);
+    op[i] = 0; // we’ll fade in
+  }
+  rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
+});
 
-// kick off initial drops staggered over time
-for (let i = 0; i < RAIN_TOTAL; i++) {
-  setTimeout(spawnRainObject, i * 200);
-}
 
 
 // ───────────────────────────────────────────────────────
@@ -690,20 +697,45 @@ function animate() {
   const tNow = performance.now() * 0.001; // seconds
 
 
-  // ─── per-drop rain update ─────────────────────────────
-  rainObjects.forEach((obj, idx) => {
+// ⬇️ Update, fade & recycle via InstancedMesh ⬇️
+if (rainMesh) {
+  const attrs = rainMesh.geometry.attributes;
+  const pos   = new THREE.Vector3();
+  const quat  = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const mat   = new THREE.Matrix4();
+
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    // pull out this instance’s matrix
+    rainMesh.getMatrixAt(i, mat);
+    mat.decompose(pos, quat, scale);
+
     // fall
-    obj.position.y -= obj.userData.fallSpeed;
-    // spin
-    obj.rotateOnAxis(obj.userData.rotAxis, obj.userData.rotSpeed);
-    // recycle when below kill plane
-    if (obj.position.y < KILL_Y) {
-      scene.remove(obj);
-      rainObjects.splice(idx, 1);
-      spawnRainObject();
+    pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
+
+    // respawn if off‐bounds
+    if (pos.y <= KILL_Y) {
+      pos.y = THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX);
+      pos.x = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
+      pos.z = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
     }
-  });
-  // ───────────────────────────────────────────────────────
+
+    // write back updated transform
+    rainDummy.position.copy(pos);
+    rainDummy.quaternion.copy(quat);
+    rainDummy.scale.copy(scale);
+    rainDummy.updateMatrix();
+    rainMesh.setMatrixAt(i, rainDummy.matrix);
+
+    // opacity fade-in/out
+    const fadeIn  = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
+    const fadeOut = THREE.MathUtils.clamp((pos.y - KILL_Y) / (SPAWN_Y_MAX - KILL_Y), 0, 1);
+    attrs.instanceOpacity.array[i] = Math.min(fadeIn, fadeOut);
+  }
+
+  attrs.instanceOpacity.needsUpdate   = true;
+  rainMesh.instanceMatrix.needsUpdate = true;
+}
 
 // 3a) handle the fade‐in of your new hue
 if (colorTransitionActive) {
