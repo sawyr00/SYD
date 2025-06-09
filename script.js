@@ -221,7 +221,7 @@ loader.load(
     const geom = src.geometry;
     const mat  = src.material.clone();
 
-    mat.transparent = false;                    // enable per-instance opacity
+    mat.transparent = true;                    // enable per-instance opacity
 
     // create the InstancedMesh
     rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_COUNT);
