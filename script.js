@@ -257,9 +257,9 @@ function spawnRainObject() {
   });
 }
 
-//for (let i = 0; i < 50; i++) {
+// for (let i = 0; i < 50; i++) {
  // spawnRainObject();
-//}
+// }
 
 loader.load(
   'models/n64cartridge1.glb',
