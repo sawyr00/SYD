@@ -243,7 +243,6 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
           );
       };
 
--   }  // ← remove this extra brace
 // ───────────────────────────────────────────────────────
 // 4.2) PER‐INSTANCE HUE ATTRIBUTE
 // ───────────────────────────────────────────────────────
