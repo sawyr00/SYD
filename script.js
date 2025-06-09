@@ -254,7 +254,8 @@ loader.load(
   );
   rainMesh.material.vertexColors = true;
 // ─── USE THE instanceOpacity ATTRIBUTE ─────────────────
-/*rainMesh.material.onBeforeCompile = shader => {
+/*
+rainMesh.material.onBeforeCompile = shader => {
   // 1) declare our opacity attribute + a varying
   shader.vertexShader =
     `attribute float instanceOpacity;\n` +
