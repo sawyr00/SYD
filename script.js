@@ -207,6 +207,13 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 // 4.1) RAIN INSTANCING SETUP
 // ───────────────────────────────────────────────────────
 const RAIN_COUNT = 50;
+
+// recycling/fade‐out constants:
+const KILL_Y           = 0;   // when a drop falls below Y=0, respawn it
+const FADE_Y           = 5;   // full fade‐out begins at Y=FADE_Y
+const SPAWN_FADE_START = 20;  // when rise above this, fade‐in starts
+const SPAWN_FADE_END   = 10;  // fully opaque by this Y
+
 let rainMesh, rainDummy = new THREE.Object3D();
 
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
