@@ -203,37 +203,47 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 
 // ───────────────────────────────────────────────────────
-// 4.1) RAIN INSTANCING SETUP
-// ───────────────────────────────────────────────────────
-const RAIN_COUNT = 50;
-let rainMesh, rainDummy = new THREE.Object3D();
+@@ 4.1) RAIN INSTANCING SETUP
+     // ───────────────────────────────────────────────────────
+-   // 4.2) PER-INSTANCE HUE ATTRIBUTE (old grouping block removed)
+-   {
+      // build a flat array of RGB triples
+      const colorArray = new Float32Array(RAIN_COUNT * 3);
+      for (let i = 0; i < RAIN_COUNT; i++) {
+        const hue = (i % 5) / 5;
+        new THREE.Color().setHSL(hue, 0.7, 0.5)
+          .toArray(colorArray, i * 3);
+      }
 
-// we’ll load *one* glTF just to extract geometry + material:
-loader.load(
-  'models/b&b_candyshell_yellow.glb', 
-  gltf => {
-    // —– find the first Mesh anywhere under the gltf.scene —–
-    const src = gltf.scene.getObjectByProperty('isMesh', true);
-    if (!src) {
-      console.error('🚨 Could not find a Mesh in yellow GLTF!');
-      return;
-    }
-    const geom = src.geometry;
-    const mat  = src.material.clone();
+      // install instance-color attribute & enable vertexColors
+      rainMesh.geometry.setAttribute(
+        'color',
+        new THREE.InstancedBufferAttribute(colorArray, 3)
+      );
+      rainMesh.material.vertexColors = true;
 
-    mat.transparent = true;                    // enable per-instance opacity
+      // patch in per-instance opacity
+      rainMesh.material.onBeforeCompile = shader => {
+        // 1) declare the instanceOpacity attribute + varying
+        shader.vertexShader =
+          `attribute float instanceOpacity;\n` +
+          `varying float vInstanceOpacity;\n` +
+          shader.vertexShader.replace(
+            /void\s+main\s*\(\s*\)\s*\{/,
+            `void main() {
+               vInstanceOpacity = instanceOpacity;`
+          );
 
-    // create the InstancedMesh
-    rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_COUNT);
-    rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        // 2) multiply the final fragment alpha
+        shader.fragmentShader =
+          `varying float vInstanceOpacity;\n` +
+          shader.fragmentShader.replace(
+            /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
+            `$1\n    diffuseColor.a *= vInstanceOpacity;`
+          );
+      };
 
-    // attribute to hold each drop’s opacity
-    const opacities = new Float32Array(RAIN_COUNT);
-    rainMesh.geometry.setAttribute(
-      'instanceOpacity',
-      new THREE.InstancedBufferAttribute(opacities, 1)
-    );
-
+-   }  // ← remove this extra brace
 // ───────────────────────────────────────────────────────
 // 4.2) PER‐INSTANCE HUE ATTRIBUTE
 // ───────────────────────────────────────────────────────
