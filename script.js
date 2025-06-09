@@ -204,25 +204,24 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 // ───────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
 // 4.1) RAIN INSTANCING SETUP
 // ───────────────────────────────────────────────────────
 const RAIN_COUNT = 50;
 
-// recycling/fade‐out constants:
-const KILL_Y           = 0;   // when a drop falls below Y=0, respawn it
-const FADE_Y           = 5;   // full fade‐out begins at Y=FADE_Y
-const SPAWN_FADE_START = 20;  // when rise above this, fade‐in starts
-const SPAWN_FADE_END   = 10;  // fully opaque by this Y
+// how far they fall before respawning:
+const KILL_Y           = -5;
+const FADE_Y           =  0;
+const SPAWN_FADE_START = 20;
+const SPAWN_FADE_END   = 10;
 
 let rainMesh, rainDummy = new THREE.Object3D();
 
+// always reset to unit scale
+rainDummy.scale.set(1,1,1);
+
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
-  // find the first Mesh
   const src = gltf.scene.getObjectByProperty('isMesh', true);
-  if (!src) {
-    console.error('🚨 Could not find a Mesh in yellow GLTF!');
-    return;
-  }
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent = true;
@@ -245,36 +244,55 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
       .toArray(colorArray, i * 3);
   }
   rainMesh.geometry.setAttribute(
-    'color',
+    'instanceColor',
     new THREE.InstancedBufferAttribute(colorArray, 3)
   );
-  rainMesh.material.vertexColors = true;
 
-  // patch in opacity to the shader
+  // optional global shrink
+  rainMesh.scale.setScalar(0.2);
+
+  // inject both opacity & selective color into the shader
   rainMesh.material.onBeforeCompile = shader => {
+    // vertex → pass color & opacity
     shader.vertexShader =
-      `attribute float instanceOpacity;\nvarying float vInstanceOpacity;\n` +
+      `attribute float instanceOpacity;\n` +
+      `attribute vec3  instanceColor;\n` +
+      `varying float vInstanceOpacity;\n` +
+      `varying vec3  vInstanceColor;\n` +
       shader.vertexShader.replace(
         /void\s+main\s*\(\s*\)\s*\{/,
-        `void main() {\n  vInstanceOpacity = instanceOpacity;`
+        `void main() {
+           vInstanceOpacity = instanceOpacity;
+           vInstanceColor   = instanceColor;`
       );
+
+    // fragment → apply opacity & selective tint
     shader.fragmentShader =
       `varying float vInstanceOpacity;\n` +
-      shader.fragmentShader.replace(
-        /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
-        `$1\n  diffuseColor.a *= vInstanceOpacity;`
-      );
+      `varying vec3  vInstanceColor;\n` +
+      shader.fragmentShader
+        .replace(
+          /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
+          `$1
+           // per-instance opacity
+           diffuseColor.a *= vInstanceOpacity;
+           // only recolor non-white fragments
+           if (length(diffuseColor.rgb - vec3(1.0)) > 0.01) {
+             diffuseColor.rgb = vInstanceColor;
+           }`
+        );
   };
 
   scene.add(rainMesh);
 
-  // initialize positions & opacities
+  // initial placement
   for (let i = 0; i < RAIN_COUNT; i++) {
     rainDummy.position.set(
       THREE.MathUtils.randFloatSpread(40),
-      THREE.MathUtils.randFloat(10, 20),
+      THREE.MathUtils.randFloat( SPWAN_FADE_END, SPAWN_FADE_START ),
       THREE.MathUtils.randFloatSpread(40)
     );
+    rainDummy.scale.set(1,1,1);
     rainDummy.updateMatrix();
     rainMesh.setMatrixAt(i, rainDummy.matrix);
     opacities[i] = 0;
@@ -282,8 +300,6 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
   rainMesh.instanceMatrix.needsUpdate = true;
 });
-
-
 
 
 // ───────────────────────────────────────────────────────
@@ -725,52 +741,53 @@ if (pulseActive) {
 }
   
 
-// ⬇️ Update, fade & recycle via InstancedMesh ⬇️
-if (rainMesh) {
-  const attrs = rainMesh.geometry.attributes;
-  const pos   = new THREE.Vector3();
-  const quat  = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-  const mat   = new THREE.Matrix4();
+  // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
+  if (rainMesh) {
+    const attrs = rainMesh.geometry.attributes;
+    const pos   = new THREE.Vector3();
+    const quat  = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    const mat   = new THREE.Matrix4();
 
-  for (let i = 0; i < RAIN_COUNT; i++) {
-    // pull out this instance’s matrix
-    rainMesh.getMatrixAt(i, mat);
-    mat.decompose(pos, quat, scale);
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      // pull out this instance’s matrix
+      rainMesh.getMatrixAt(i, mat);
+      mat.decompose(pos, quat, scale);
 
-    // fall
-    pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
+      // always reset scale so it doesn’t morph into a sphere
+      rainDummy.scale.set(1, 1, 1);
 
-    // respawn if off‐bounds
-    if (pos.y <= KILL_Y) pos.y = THREE.MathUtils.randFloat(10, 20);
+      // fall
+      pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
 
-    // compute your old fades:
-    const fy = THREE.MathUtils.clamp(1 - (FADE_Y - pos.y) / (FADE_Y - KILL_Y), 0, 1);
-    const fx = 1; // no X‐bounds fade if you like
-    const fz = 1;
-    const fadeOut = Math.min(fy, fx, fz);
+      // respawn if off‐bounds
+      if (pos.y <= KILL_Y) pos.y = SPAWN_FADE_START;
 
-    const fadeIn = THREE.MathUtils.clamp(
-      (SPAWN_FADE_START - pos.y) / (SPAWN_FADE_START - SPAWN_FADE_END),
-      0, 1
-    );
+      // fade‐out as it approaches KILL_Y → FADE_Y
+      const fy = THREE.MathUtils.clamp(
+        1 - (FADE_Y - pos.y) / (FADE_Y - KILL_Y),
+        0, 1
+      );
 
-    const fade = Math.min(fadeOut, fadeIn);
+      // fade‐in from SPAWN_FADE_START → SPAWN_FADE_END
+      const fi = THREE.MathUtils.clamp(
+        (SPAWN_FADE_START - pos.y) / (SPAWN_FADE_START - SPAWN_FADE_END),
+        0, 1
+      );
 
-    // write back updated matrix
-    rainDummy.position.copy(pos);
-    rainDummy.quaternion.copy(quat);
-    rainDummy.scale.copy(scale);
-    rainDummy.updateMatrix();
-    rainMesh.setMatrixAt(i, rainDummy.matrix);
+      const f = Math.min(fy, fi);
 
-    // update opacity attribute
-    attrs.instanceOpacity.array[i] = fade;
+      // write the updated matrix back
+      mat.compose(pos, quat, scale);
+      rainMesh.setMatrixAt(i, mat);
+
+      // update opacity attribute
+      attrs.instanceOpacity.array[i] = f;
+    }
+
+    attrs.instanceOpacity.needsUpdate  = true;
+    rainMesh.instanceMatrix.needsUpdate = true;
   }
-
-  attrs.instanceOpacity.needsUpdate = true;
-  rainMesh.instanceMatrix.needsUpdate = true;
-}
 
 
   // pulsation & BB-button
