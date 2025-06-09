@@ -54,7 +54,7 @@ const manager = new THREE.LoadingManager(
 // 4) GLTF LOADER
 // ───────────────────────────────────────────────────────
 // Pass our manager into the loader so it tracks all loads
-//const loader = new GLTFLoader(manager);
+const loader = new GLTFLoader(manager);
 
 // ───────────────────────────────────────────────────────
 // 5) SCENE SETUP
@@ -201,8 +201,7 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 
 
-// Load 3D Model
-const loader = new GLTFLoader(manager);
+
 // ───────────────────────────────────────────────────────
 // 4.1) RAIN INSTANCING SETUP
 // ───────────────────────────────────────────────────────
