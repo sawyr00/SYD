@@ -129,6 +129,28 @@ const SPAWN_XZ_RAD     = 50;    // ±range in X and Z
 const KILL_Y           = -20;   // when to remove them
 const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
 
+// ─── Drop spawner state ───
+const drops = [];
+let dropGeometry, dropMaterial;
+
+
+// ─── Drop initializer (INSERT HERE!) ─────────────────────
+function initDrops(srcMesh) {
+  dropGeometry = srcMesh.geometry;
+  dropMaterial = srcMesh.material.clone();
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    drops.push({
+      mesh:      null,
+      spawnTime: Math.random() * 5,
+      speed:     1 + Math.random() * 2,
+      rotVel:    new THREE.Vector3(
+                   Math.random()*0.02,
+                   Math.random()*0.02,
+                   Math.random()*0.02
+                 )
+    });
+  }
+}
 
 // Model & rotation state
 let model;
@@ -226,8 +248,12 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   }
 
   // holds every active drop + its data
-  const drops = [];
-  let dropGeometry, dropMaterial;
+//  const drops = [];
+ // let dropGeometry, dropMaterial;
+
+// initialize our drop system
+  initDrops(src);
+
 
   // called once, after your candyshell glTF is loaded:
   function initDrops(srcMesh) {
@@ -665,43 +691,40 @@ function animateBBButton() {
 
 // Main loop
 function animate() {
-const tNow = performance.now() * 0.001;
+  const tNow = performance.now() * 0.001;  // seconds
 
-//  ── Drop spawner & updater ── 
-drops.forEach((d, idx) => {
-  // spawn?
-  if (!d.mesh && tNow >= d.spawnTime) {
-    const m = new THREE.Mesh(dropGeometry, dropMaterial.clone());
-    // random XZ, but avoid cartridge center
-    let x,z;
-    do {
-      x = (Math.random()*2-1)*SPAWN_XZ_RAD;
-      z = (Math.random()*2-1)*SPAWN_XZ_RAD;
-    } while (Math.hypot(x,z) < CARTRIDGE_CLEAR_XZ);
-    const y = THREE.MathUtils.lerp(SPAWN_Y_MIN, SPAWN_Y_MAX, Math.random());
-    m.position.set(x,y,z);
-    m.castShadow = m.receiveShadow = true;
-    scene.add(m);
-    d.mesh = m;
-  }
-
-  // update
-  if (d.mesh) {
-    d.mesh.position.y -= d.speed * 0.1;    // slower scale
-    d.mesh.rotateX(d.rotVel.x);
-    d.mesh.rotateY(d.rotVel.y);
-    d.mesh.rotateZ(d.rotVel.z);
-
-    // kill?
-    if (d.mesh.position.y < KILL_Y) {
-      scene.remove(d.mesh);
-      d.mesh = null;
-      // re-schedule next spawn
-      d.spawnTime = tNow + 1 + Math.random()*5;
-      d.speed     = 1 + Math.random()*2;
+  // ── Drop spawner & updater ──
+  drops.forEach(d => {
+    // spawn
+    if (!d.mesh && tNow >= d.spawnTime) {
+      const m = new THREE.Mesh(dropGeometry, dropMaterial.clone());
+      // random XZ, avoid cartridge center
+      let x, z;
+      do {
+        x = (Math.random()*2 - 1) * SPAWN_XZ_RAD;
+        z = (Math.random()*2 - 1) * SPAWN_XZ_RAD;
+      } while (Math.hypot(x, z) < CARTRIDGE_CLEAR_XZ);
+      const y = THREE.MathUtils.lerp(SPAWN_Y_MIN, SPAWN_Y_MAX, Math.random());
+      m.position.set(x, y, z);
+      m.castShadow = m.receiveShadow = true;
+      scene.add(m);
+      d.mesh = m;
     }
-  }
-});
+    // update
+    if (d.mesh) {
+      d.mesh.position.y -= d.speed * 0.1;
+      d.mesh.rotateX(d.rotVel.x);
+      d.mesh.rotateY(d.rotVel.y);
+      d.mesh.rotateZ(d.rotVel.z);
+      // kill & recycle
+      if (d.mesh.position.y < KILL_Y) {
+        scene.remove(d.mesh);
+        d.mesh = null;
+        d.spawnTime = tNow + 1 + Math.random()*5;
+        d.speed     = 1 + Math.random()*2;
+      }
+    }
+  });
 
 // 3a) handle the fade‐in of your new hue
 if (colorTransitionActive) {
