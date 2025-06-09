@@ -124,10 +124,15 @@ scene.add(new THREE.HemisphereLight(
 // ─── Rain spawn / kill parameters ───
 const RAIN_TOTAL       = 50;
 const SPAWN_Y_MIN      = 30;    // how high they start
-const SPAWN_Y_MAX      = 40;
-const SPAWN_XZ_RAD     = 50;    // ±range in X and Z
-const KILL_Y           = -20;   // when to remove them
+const SPAWN_Y_MAX      = 60;
+const SPAWN_XZ_RAD     = 100;    // ±range in X and Z
+const KILL_Y           = 30;   // when to remove them
 const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
+
+
+// ─── Instanced‐mesh globals ───
+let rainMesh;                   // hold the InstancedMesh if you ever use it
+let rainDummy = new THREE.Object3D();  // helper for matrix updates
 
 // ─── Drop spawner state ───
 const drops = [];
@@ -237,48 +242,39 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 // ───────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────
-// 4.1) RAIN DROP LOADER & INIT
-// ───────────────────────────────────────────────────────
-loader.load('models/b&b_candyshell_yellow.glb', gltf => {
-  // find the mesh inside the candy-shell GLTF
-  const src = gltf.scene.getObjectByProperty('isMesh', true);
-  if (!src) {
-    console.error('🚨 Could not find a Mesh in yellow GLTF!');
-    return;
-  }
+// ─── 4.1) Rain spawn / kill logic (per-drop) ─────────────────
+const rainObjects = [];
 
-  // holds every active drop + its data
-//  const drops = [];
- // let dropGeometry, dropMaterial;
+function spawnRainObject() {
+  loader.load('models/b&b_candyshell_yellow.glb', gltf => {
+    const obj = gltf.scene.clone();
+    obj.traverse(m => {
+      if (m.isMesh) {
+        m.castShadow = m.receiveShadow = false;
+        m.material.transparent = true;
+        m.material.depthWrite = false;
+      }
+    });
+    // random start
+    obj.position.set(
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+    );
+    obj.userData = {
+      fallSpeed: THREE.MathUtils.randFloat(0.02, 0.1),
+      rotAxis: new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize(),
+      rotSpeed: THREE.MathUtils.randFloat(0.01, 0.05)
+    };
+    scene.add(obj);
+    rainObjects.push(obj);
+  });
+}
 
-// initialize our drop system
-  initDrops(src);
-
-
-  // called once, after your candyshell glTF is loaded:
-  function initDrops(srcMesh) {
-    dropGeometry = srcMesh.geometry;
-    dropMaterial = srcMesh.material.clone();
-    // pre-populate with “empty” slots (we’ll spawn over time)
-    for (let i = 0; i < RAIN_TOTAL; i++) {
-      drops.push({
-        mesh:      null,
-        spawnTime: Math.random() * 5,       // delay before spawn
-        speed:     1 + Math.random() * 2,   // fall speed
-        rotVel: new THREE.Vector3(
-          Math.random() * 0.02,
-          Math.random() * 0.02,
-          Math.random() * 0.02
-        )
-      });
-    }
-  }
-
-  initDrops(src);
-
-  // **now** you can either build your InstancedMesh or switch to drop-by-drop spawning
-  // …your existing rainMesh or per-drop logic goes here…
-});
+// kick off initial drops staggered over time
+for (let i = 0; i < RAIN_TOTAL; i++) {
+  setTimeout(spawnRainObject, i * 200);
+}
 
 
 // ───────────────────────────────────────────────────────
@@ -725,6 +721,21 @@ function animate() {
       }
     }
   });
+
+  // ─── per-drop rain update ─────────────────────────────
+  rainObjects.forEach((obj, idx) => {
+    // fall
+    obj.position.y -= obj.userData.fallSpeed;
+    // spin
+    obj.rotateOnAxis(obj.userData.rotAxis, obj.userData.rotSpeed);
+    // recycle when below kill plane
+    if (obj.position.y < KILL_Y) {
+      scene.remove(obj);
+      rainObjects.splice(idx, 1);
+      spawnRainObject();
+    }
+  });
+  // ───────────────────────────────────────────────────────
 
 // 3a) handle the fade‐in of your new hue
 if (colorTransitionActive) {
