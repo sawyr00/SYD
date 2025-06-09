@@ -339,84 +339,64 @@ scene.add(rainMesh);
 );
 
 
-loader.load(
-  'models/n64cartridge1.glb',
+// ───────────────────────────────────────────────────────
+// 4.3) MAIN MODEL LOADER
+// ───────────────────────────────────────────────────────
+loader.load('models/n64cartridge1.glb', gltf => {
+  console.log('✅ cartridge loaded:', gltf);
+  model = gltf.scene;
+  model.traverse(c => {
+    if (c.isMesh) {
+      c.castShadow    = true;
+      c.receiveShadow = true;
+    }
+  });
 
-  // ───────────────────────────────────────────────────────
-  // onLoad: all setup, then LoadingManager hides preloader
-  // ───────────────────────────────────────────────────────
-  gltf => {
-    // ✅ Verify that the cartridge came through
-    console.log('✅ cartridge loaded:', gltf);
+  // center + light
+  const box    = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const fill   = new THREE.PointLight(0xffffff, 0.8, 10);
+  fill.position.set(0,2,2);
+  fill.castShadow = false;
+  model.add(fill);
 
-    model = gltf.scene;
-    model.traverse(c => {
-      if (c.isMesh) {
-        c.castShadow    = true;
-        c.receiveShadow = true;
-      }
-    });
+  model.position.sub(center);
+  model.scale.set(initialModelScale, initialModelScale, initialModelScale);
 
-    // center + light
-    const box    = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    …
+  model.rotation.set(
+    THREE.MathUtils.degToRad(-32),
+    THREE.MathUtils.degToRad(-25),
+    THREE.MathUtils.degToRad(-15)
+  );
 
+  squashGroup = new THREE.Group();
+  squashGroup.add(model);
+  scene.add(squashGroup);
 
-    const fill = new THREE.PointLight(0xffffff, 0.8, 10);
-    fill.position.set(0, 2, 2);
-    fill.castShadow = false;
-    model.add(fill);
+  squashUniforms = [];
+  model.traverse(child => {
+    if (child.isMesh && child.material.uniforms?.cartoonSquash) {
+      squashUniforms.push(child.material.uniforms.cartoonSquash);
+    }
+  });
 
-    model.position.sub(center);
-    model.scale.set(initialModelScale, initialModelScale, initialModelScale);
+  const keyLight = new THREE.SpotLight(0xffffff, 0.1);
+  keyLight.position.set(5,5,5);
+  keyLight.target = model;
+  keyLight.castShadow = true;
+  scene.add(keyLight);
 
-    // pre-rotate
-    model.rotation.x = THREE.MathUtils.degToRad(-32);
-    model.rotation.y = THREE.MathUtils.degToRad(-25);
-    model.rotation.z = THREE.MathUtils.degToRad(-15);
+  // position camera
+  const size = box.getSize(new THREE.Vector3()).length();
+  const fov  = camera.fov * Math.PI / 180;
+  defaultCameraZ = size / (2 * Math.tan(fov/2)) * 1.5;
+  camera.position.set(0,0,defaultCameraZ);
+  controls.target.set(0,0,0);
+  controls.update();
+}, undefined, err => {
+  console.error('Failed to load main model:', err);
+});
 
-    // wrap in a group and add to scene
-    squashGroup = new THREE.Group();
-    squashGroup.add(model);
-    scene.add(squashGroup);
-
-    // collect squash uniforms
-    squashUniforms = [];
-    model.traverse(child => {
-      if (child.isMesh && child.material.uniforms && child.material.uniforms.cartoonSquash) {
-        squashUniforms.push(child.material.uniforms.cartoonSquash);
-      }
-    });
-
-    // key light
-    const keyLight = new THREE.SpotLight(0xffffff, 0.1);
-    keyLight.position.set(5, 5, 5);
-    keyLight.target = model;
-    keyLight.castShadow = true;
-    scene.add(keyLight);
-
-    // position camera
-    const size = box.getSize(new THREE.Vector3()).length();
-    const fov  = (camera.fov * Math.PI) / 180;
-    defaultCameraZ = (size / (2 * Math.tan(fov / 2))) * 1.5;
-    camera.position.set(0, 0, defaultCameraZ);
-    controls.target.set(0, 0, 0);
-    controls.update();
-  },
-
-  // ───────────────────────────────────────────────────────
-  // onProgress: (unused)
-  // ───────────────────────────────────────────────────────
-  undefined,
-
-  // ───────────────────────────────────────────────────────
-  // onError: log and allow LoadingManager to hide preloader
-  // ───────────────────────────────────────────────────────
-  err => {
-    console.error('Failed to load main model:', err);
-  }
-);
 
 
 // Window resize
