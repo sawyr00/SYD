@@ -313,6 +313,9 @@ loader.load(
   // onLoad: all setup, then LoadingManager hides preloader
   // ───────────────────────────────────────────────────────
   gltf => {
+    // ✅ Verify that the cartridge came through
+    console.log('✅ cartridge loaded:', gltf);
+
     model = gltf.scene;
     model.traverse(c => {
       if (c.isMesh) {
@@ -324,6 +327,8 @@ loader.load(
     // center + light
     const box    = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
+    …
+
 
     const fill = new THREE.PointLight(0xffffff, 0.8, 10);
     fill.position.set(0, 2, 2);
