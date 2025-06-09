@@ -215,7 +215,7 @@ loader.load(
     // —– find the first Mesh anywhere under the gltf.scene —–
     const src = gltf.scene.getObjectByProperty('isMesh', true);
     if (!src) {
-      console.error('🚨 Could not find a Mesh in lavender GLTF!');
+      console.error('🚨 Could not find a Mesh in yellow GLTF!');
       return;
     }
     const geom = src.geometry;
