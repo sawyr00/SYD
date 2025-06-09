@@ -210,12 +210,18 @@ let rainMesh, rainDummy = new THREE.Object3D();
 
 // we’ll load *one* glTF just to extract geometry + material:
 loader.load(
-  'models/b&b_candyshell_lavender.glb', 
+  'models/b&b_candyshell_yellow.glb', 
   gltf => {
-    const src = gltf.scene.children[0];        // assume root mesh
+    // —– find the first Mesh anywhere under the gltf.scene —–
+    const src = gltf.scene.getObjectByProperty('isMesh', true);
+    if (!src) {
+      console.error('🚨 Could not find a Mesh in lavender GLTF!');
+      return;
+    }
     const geom = src.geometry;
     const mat  = src.material.clone();
-    mat.transparent = true;                    // enable per-instance opacity
+
+    mat.transparent = false;                    // enable per-instance opacity
 
     // create the InstancedMesh
     rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_COUNT);
