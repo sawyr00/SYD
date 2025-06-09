@@ -730,58 +730,45 @@ if (pulseActive) {
 }
   
 
-  // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
-  if (rainMesh) {
-    const attrs = rainMesh.geometry.attributes;
-    const pos   = new THREE.Vector3();
-    const quat  = new THREE.Quaternion();
-    const scale = new THREE.Vector3();
-    const mat   = new THREE.Matrix4();
+// ⬇️ Update, fade & recycle via InstancedMesh ⬇️
+if (rainMesh) {
+  const attrs = rainMesh.geometry.attributes;
+  const pos   = new THREE.Vector3();
+  const quat  = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const mat   = new THREE.Matrix4();
 
-    for (let i = 0; i < RAIN_COUNT; i++) {
-      // pull out this instance’s matrix
-      rainMesh.getMatrixAt(i, mat);
-      mat.decompose(pos, quat, scale);
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    rainMesh.getMatrixAt(i, mat);
+    mat.decompose(pos, quat, scale);
 
-      // always reset scale so it doesn’t morph into a sphere
-   //   rainDummy.scale.set(1, 1, 1);
+    // fall
+    pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
 
-      // fall
-      pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
-
-      // respawn if off‐bounds
-      if (pos.y <= KILL_Y) {
-    pos.y = THREE.MathUtils.randFloat(spawnYMin, spawnYMax);
-    pos.x = THREE.MathUtils.randFloatSpread(spawnXzRange);
-   pos.z = THREE.MathUtils.randFloatSpread(spawnXzRange);
+    // respawn if off-bounds
+    if (pos.y <= KILL_Y) {
+      pos.y = THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX);
+      pos.x = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
+      pos.z = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
     }
 
-      // fade‐out as it approaches KILL_Y → FADE_Y
-      const fy = THREE.MathUtils.clamp(
-        1 - (FADE_Y - pos.y) / (FADE_Y - KILL_Y),
-        0, 1
-      );
+    // fade in/out
+    const fi = THREE.MathUtils.clamp(
+      (pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1
+    );
+    const fy = THREE.MathUtils.clamp(
+      (SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y), 0, 1
+    );
+    const f  = Math.min(fi, fy);
 
-      // fade‐in from SPAWN_FADE_START → SPAWN_FADE_END
-      const fi = THREE.MathUtils.clamp(
-        (SPAWN_FADE_START - pos.y) / (SPAWN_FADE_START - SPAWN_FADE_END),
-        0, 1
-      );
-
-      const f = Math.min(fy, fi);
-
-      // write the updated matrix back
-      mat.compose(pos, quat, scale);
-      rainMesh.setMatrixAt(i, mat);
-
-      // update opacity attribute
-      attrs.instanceOpacity.array[i] = f;
-    }
-
-    attrs.instanceOpacity.needsUpdate  = true;
-    rainMesh.instanceMatrix.needsUpdate = true;
+    mat.compose(pos, quat, scale);
+    rainMesh.setMatrixAt(i, mat);
+    attrs.instanceOpacity.array[i] = f;
   }
 
+  attrs.instanceOpacity.needsUpdate   = true;
+  rainMesh.instanceMatrix.needsUpdate = true;
+}
 
   // pulsation & BB-button
   pulsateModel();
