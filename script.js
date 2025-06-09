@@ -203,44 +203,7 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 
 // ───────────────────────────────────────────────────────
-@@ 4.1) RAIN INSTANCING SETUP
-     // ───────────────────────────────────────────────────────
 
-      // build a flat array of RGB triples
-      const colorArray = new Float32Array(RAIN_COUNT * 3);
-      for (let i = 0; i < RAIN_COUNT; i++) {
-        const hue = (i % 5) / 5;
-        new THREE.Color().setHSL(hue, 0.7, 0.5)
-          .toArray(colorArray, i * 3);
-      }
-
-      // install instance-color attribute & enable vertexColors
-      rainMesh.geometry.setAttribute(
-        'color',
-        new THREE.InstancedBufferAttribute(colorArray, 3)
-      );
-      rainMesh.material.vertexColors = true;
-
-      // patch in per-instance opacity
-      rainMesh.material.onBeforeCompile = shader => {
-        // 1) declare the instanceOpacity attribute + varying
-        shader.vertexShader =
-          `attribute float instanceOpacity;\n` +
-          `varying float vInstanceOpacity;\n` +
-          shader.vertexShader.replace(
-            /void\s+main\s*\(\s*\)\s*\{/,
-            `void main() {
-               vInstanceOpacity = instanceOpacity;`
-          );
-
-        // 2) multiply the final fragment alpha
-        shader.fragmentShader =
-          `varying float vInstanceOpacity;\n` +
-          shader.fragmentShader.replace(
-            /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
-            `$1\n    diffuseColor.a *= vInstanceOpacity;`
-          );
-      };
 
 // ───────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────
