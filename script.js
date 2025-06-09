@@ -689,38 +689,6 @@ function animateBBButton() {
 function animate() {
   const tNow = performance.now() * 0.001; // seconds
 
-  // ── Drop spawner & updater ──
-  drops.forEach(d => {
-    // spawn
-    if (!d.mesh && tNow >= d.spawnTime) {
-      const m = new THREE.Mesh(dropGeometry, dropMaterial.clone());
-      // random XZ, avoid cartridge center
-      let x, z;
-      do {
-        x = (Math.random()*2 - 1) * SPAWN_XZ_RAD;
-        z = (Math.random()*2 - 1) * SPAWN_XZ_RAD;
-      } while (Math.hypot(x, z) < CARTRIDGE_CLEAR_XZ);
-      const y = THREE.MathUtils.lerp(SPAWN_Y_MIN, SPAWN_Y_MAX, Math.random());
-      m.position.set(x, y, z);
-      m.castShadow = m.receiveShadow = true;
-      scene.add(m);
-      d.mesh = m;
-    }
-    // update
-    if (d.mesh) {
-      d.mesh.position.y -= d.speed * 0.1;
-      d.mesh.rotateX(d.rotVel.x);
-      d.mesh.rotateY(d.rotVel.y);
-      d.mesh.rotateZ(d.rotVel.z);
-      // kill & recycle
-      if (d.mesh.position.y < KILL_Y) {
-        scene.remove(d.mesh);
-        d.mesh = null;
-        d.spawnTime = tNow + 1 + Math.random()*5;
-        d.speed     = 1 + Math.random()*2;
-      }
-    }
-  });
 
   // ─── per-drop rain update ─────────────────────────────
   rainObjects.forEach((obj, idx) => {
