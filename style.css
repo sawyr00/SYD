@@ -113,9 +113,9 @@ canvas {
 }
 
 /* TEMP: disable preloader */
-//#preloader {
+// #preloader {
  // display: none !important;
-//}
-//#main-content {
+// }
+// #main-content {
  // visibility: visible !important;
-//}
+// }
