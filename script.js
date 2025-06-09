@@ -764,7 +764,7 @@ if (rainMesh) {
   attrs.instanceOpacity.needsUpdate = true;
   rainMesh.instanceMatrix.needsUpdate = true;
 }
-So
+
 
   // pulsation & BB-button
   pulsateModel();
