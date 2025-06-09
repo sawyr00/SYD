@@ -14,12 +14,14 @@ import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
 function hidePreloader() {
   const pre  = document.getElementById('preloader');
   const main = document.getElementById('main-content');
-  pre.classList.add('hidden');
-  pre.addEventListener('transitionend', () => {
-    pre.remove();
-    main.style.visibility = 'visible';
-  });
+
+  // immediately remove the overlay
+  pre.remove();
+
+  // show your real content
+  main.style.visibility = 'visible';
 }
+
 
 // ───────────────────────────────────────────────────────
 // 3) LOADING MANAGER
