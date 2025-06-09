@@ -254,7 +254,7 @@ loader.load(
   );
   rainMesh.material.vertexColors = true;
 // ─── USE THE instanceOpacity ATTRIBUTE ─────────────────
-rainMesh.material.onBeforeCompile = shader => {
+/*rainMesh.material.onBeforeCompile = shader => {
   // 1) declare our opacity attribute + a varying
   shader.vertexShader =
     `attribute float instanceOpacity;\n` +
@@ -264,7 +264,7 @@ rainMesh.material.onBeforeCompile = shader => {
       `void main() {
          vInstanceOpacity = instanceOpacity;`
     );
-
+*/
   // 2) multiply the final fragment alpha by it
   shader.fragmentShader =
     `varying float vInstanceOpacity;\n` +
