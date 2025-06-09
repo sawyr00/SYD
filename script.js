@@ -117,8 +117,19 @@ scene.add(new THREE.HemisphereLight(
   dir.shadow.camera.updateProjectionMatrix();
 
 
+
   scene.add(dir);
 });
+
+// ─── Rain spawn / kill parameters ───
+const RAIN_TOTAL       = 50;
+const SPAWN_Y_MIN      = 30;    // how high they start
+const SPAWN_Y_MAX      = 40;
+const SPAWN_XZ_RAD     = 50;    // ±range in X and Z
+const KILL_Y           = -20;   // when to remove them
+const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
+
+
 // Model & rotation state
 let model;
 // …up above, where you have let model; let squashGroup; …
@@ -204,105 +215,43 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 // ───────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────
+// 4.1) RAIN DROP LOADER & INIT
 // ───────────────────────────────────────────────────────
-// 4.1) RAIN INSTANCING SETUP
-// ───────────────────────────────────────────────────────
-const RAIN_COUNT = 50;
-
-const spawnYMin    = 15;   // lowest Y a new drop can start at
-const spawnYMax    = 25;   // highest Y a new drop can start at
-const spawnXzRange = 40;   // total width/depth of the rain “box” (±20 in X/Z)
-
-// how far they fall before respawning:
-const KILL_Y           =  0;
-const FADE_Y           =  5;
-const SPAWN_FADE_START = 25;
-const SPAWN_FADE_END   = 22;
-
-let rainMesh, rainDummy = new THREE.Object3D();
-
-// always reset to unit scale
-rainDummy.scale.set(1,1,1);
-
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
+  // find the mesh inside the candy-shell GLTF
   const src = gltf.scene.getObjectByProperty('isMesh', true);
-  const geom = src.geometry;
-  const mat  = src.material.clone();
-  mat.transparent = true;
-
-  rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_COUNT);
-  rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-
-  // per-instance opacity
-  const opacities = new Float32Array(RAIN_COUNT);
-  rainMesh.geometry.setAttribute(
-    'instanceOpacity',
-    new THREE.InstancedBufferAttribute(opacities, 1)
-  );
-
-  // per-instance color
-  const colorArray = new Float32Array(RAIN_COUNT * 3);
-  for (let i = 0; i < RAIN_COUNT; i++) {
-    const hue = (i % 5) / 5;
-    new THREE.Color().setHSL(hue, 0.7, 0.5)
-      .toArray(colorArray, i * 3);
+  if (!src) {
+    console.error('🚨 Could not find a Mesh in yellow GLTF!');
+    return;
   }
-  rainMesh.geometry.setAttribute(
-    'instanceColor',
-    new THREE.InstancedBufferAttribute(colorArray, 3)
-  );
 
-  // optional global shrink
-  rainMesh.scale.setScalar(0.2);
+  // holds every active drop + its data
+  const drops = [];
+  let dropGeometry, dropMaterial;
 
-  // inject both opacity & selective color into the shader
-  rainMesh.material.onBeforeCompile = shader => {
-    // vertex → pass color & opacity
-    shader.vertexShader =
-      `attribute float instanceOpacity;\n` +
-      `attribute vec3  instanceColor;\n` +
-      `varying float vInstanceOpacity;\n` +
-      `varying vec3  vInstanceColor;\n` +
-      shader.vertexShader.replace(
-        /void\s+main\s*\(\s*\)\s*\{/,
-        `void main() {
-           vInstanceOpacity = instanceOpacity;
-           vInstanceColor   = instanceColor;`
-      );
-
-    // fragment → apply opacity & selective tint
-    shader.fragmentShader =
-      `varying float vInstanceOpacity;\n` +
-      `varying vec3  vInstanceColor;\n` +
-      shader.fragmentShader
-        .replace(
-          /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
-          `$1
-           // per-instance opacity
-           diffuseColor.a *= vInstanceOpacity;
-           // only recolor non-white fragments
-           if (length(diffuseColor.rgb - vec3(1.0)) > 0.01) {
-             diffuseColor.rgb = vInstanceColor;
-           }`
-        );
-  };
-
-  scene.add(rainMesh);
-
-  // initial placement
-  for (let i = 0; i < RAIN_COUNT; i++) {
-    rainDummy.position.set(
-      THREE.MathUtils.randFloatSpread(40),
-      THREE.MathUtils.randFloat( SPWAN_FADE_END, SPAWN_FADE_START ),
-      THREE.MathUtils.randFloatSpread(40)
-    );
-    rainDummy.scale.set(1,1,1);
-    rainDummy.updateMatrix();
-    rainMesh.setMatrixAt(i, rainDummy.matrix);
-    opacities[i] = 0;
+  // called once, after your candyshell glTF is loaded:
+  function initDrops(srcMesh) {
+    dropGeometry = srcMesh.geometry;
+    dropMaterial = srcMesh.material.clone();
+    // pre-populate with “empty” slots (we’ll spawn over time)
+    for (let i = 0; i < RAIN_TOTAL; i++) {
+      drops.push({
+        mesh:      null,
+        spawnTime: Math.random() * 5,       // delay before spawn
+        speed:     1 + Math.random() * 2,   // fall speed
+        rotVel: new THREE.Vector3(
+          Math.random() * 0.02,
+          Math.random() * 0.02,
+          Math.random() * 0.02
+        )
+      });
+    }
   }
-  rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-  rainMesh.instanceMatrix.needsUpdate = true;
+
+  initDrops(src);
+
+  // **now** you can either build your InstancedMesh or switch to drop-by-drop spawning
+  // …your existing rainMesh or per-drop logic goes here…
 });
 
 
@@ -712,9 +661,47 @@ function animateBBButton() {
   bbBtn.style.boxShadow = `0 0 15px 3px rgba(255, 0, 0, ${glowAlpha})`;
 }
 
+
+
 // Main loop
 function animate() {
-  const now = performance.now();
+const tNow = performance.now() * 0.001;
+
+//  ── Drop spawner & updater ── 
+drops.forEach((d, idx) => {
+  // spawn?
+  if (!d.mesh && tNow >= d.spawnTime) {
+    const m = new THREE.Mesh(dropGeometry, dropMaterial.clone());
+    // random XZ, but avoid cartridge center
+    let x,z;
+    do {
+      x = (Math.random()*2-1)*SPAWN_XZ_RAD;
+      z = (Math.random()*2-1)*SPAWN_XZ_RAD;
+    } while (Math.hypot(x,z) < CARTRIDGE_CLEAR_XZ);
+    const y = THREE.MathUtils.lerp(SPAWN_Y_MIN, SPAWN_Y_MAX, Math.random());
+    m.position.set(x,y,z);
+    m.castShadow = m.receiveShadow = true;
+    scene.add(m);
+    d.mesh = m;
+  }
+
+  // update
+  if (d.mesh) {
+    d.mesh.position.y -= d.speed * 0.1;    // slower scale
+    d.mesh.rotateX(d.rotVel.x);
+    d.mesh.rotateY(d.rotVel.y);
+    d.mesh.rotateZ(d.rotVel.z);
+
+    // kill?
+    if (d.mesh.position.y < KILL_Y) {
+      scene.remove(d.mesh);
+      d.mesh = null;
+      // re-schedule next spawn
+      d.spawnTime = tNow + 1 + Math.random()*5;
+      d.speed     = 1 + Math.random()*2;
+    }
+  }
+});
 
 // 3a) handle the fade‐in of your new hue
 if (colorTransitionActive) {
