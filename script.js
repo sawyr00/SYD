@@ -125,8 +125,8 @@ scene.add(new THREE.HemisphereLight(
 const RAIN_TOTAL       = 50;
 const SPAWN_Y_MIN      = 30;    // how high they start
 const SPAWN_Y_MAX      = 60;
-const SPAWN_XZ_RAD     = 100;    // ±range in X and Z
-const KILL_Y           = 30;   // when to remove them
+const SPAWN_XZ_RAD     = 50;    // ±range in X and Z
+const KILL_Y           = -30;   // when to remove them
 const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
 
 
