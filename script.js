@@ -203,6 +203,78 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 
 // ───────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
+// 4.1) RAIN INSTANCING SETUP
+// ───────────────────────────────────────────────────────
+const RAIN_COUNT = 50;
+let rainMesh, rainDummy = new THREE.Object3D();
+
+loader.load('models/b&b_candyshell_yellow.glb', gltf => {
+  // find the first Mesh
+  const src = gltf.scene.getObjectByProperty('isMesh', true);
+  if (!src) {
+    console.error('🚨 Could not find a Mesh in yellow GLTF!');
+    return;
+  }
+  const geom = src.geometry;
+  const mat  = src.material.clone();
+  mat.transparent = true;
+
+  rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_COUNT);
+  rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+  // per-instance opacity
+  const opacities = new Float32Array(RAIN_COUNT);
+  rainMesh.geometry.setAttribute(
+    'instanceOpacity',
+    new THREE.InstancedBufferAttribute(opacities, 1)
+  );
+
+  // per-instance color
+  const colorArray = new Float32Array(RAIN_COUNT * 3);
+  for (let i = 0; i < RAIN_COUNT; i++) {
+    const hue = (i % 5) / 5;
+    new THREE.Color().setHSL(hue, 0.7, 0.5)
+      .toArray(colorArray, i * 3);
+  }
+  rainMesh.geometry.setAttribute(
+    'color',
+    new THREE.InstancedBufferAttribute(colorArray, 3)
+  );
+  rainMesh.material.vertexColors = true;
+
+  // patch in opacity to the shader
+  rainMesh.material.onBeforeCompile = shader => {
+    shader.vertexShader =
+      `attribute float instanceOpacity;\nvarying float vInstanceOpacity;\n` +
+      shader.vertexShader.replace(
+        /void\s+main\s*\(\s*\)\s*\{/,
+        `void main() {\n  vInstanceOpacity = instanceOpacity;`
+      );
+    shader.fragmentShader =
+      `varying float vInstanceOpacity;\n` +
+      shader.fragmentShader.replace(
+        /(vec4\s+diffuseColor\s*=\s*vec4\([\s\S]*?\);)/,
+        `$1\n  diffuseColor.a *= vInstanceOpacity;`
+      );
+  };
+
+  scene.add(rainMesh);
+
+  // initialize positions & opacities
+  for (let i = 0; i < RAIN_COUNT; i++) {
+    rainDummy.position.set(
+      THREE.MathUtils.randFloatSpread(40),
+      THREE.MathUtils.randFloat(10, 20),
+      THREE.MathUtils.randFloatSpread(40)
+    );
+    rainDummy.updateMatrix();
+    rainMesh.setMatrixAt(i, rainDummy.matrix);
+    opacities[i] = 0;
+  }
+  rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
+  rainMesh.instanceMatrix.needsUpdate = true;
+});
 
 
 // ───────────────────────────────────────────────────────
