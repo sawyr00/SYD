@@ -26,24 +26,33 @@ function hidePreloader() {
 // ───────────────────────────────────────────────────────
 // This manager tracks **all** loader.load() calls and
 // fires .onLoad() once every one of them completes.
-const manager = new THREE.LoadingManager();
+// ───────────────────────────────────────────────────────
+// 3) LOADING MANAGER (with progress)
+// ───────────────────────────────────────────────────────
+const manager = new THREE.LoadingManager(
+  // onLoad: once every asset has finished
+  () => hidePreloader(),
 
-manager.onLoad = () => {
-  // hide spinner only after every single asset has loaded
-  hidePreloader();
-};
+  // onProgress: (url, itemsLoaded, itemsTotal)
+  (url, itemsLoaded, itemsTotal) => {
+    // compute percentage
+    const pct = (itemsLoaded / itemsTotal) * 100;
+    document.getElementById('progress-bar').style.width = pct + '%';
+  },
 
-manager.onError = url => {
-  console.warn(`Failed to load ${url}, continuing anyway…`);
-  // still hide the spinner so the page isn't stuck
-  hidePreloader();
-};
+  // onError: if any asset errors out, still clear the preloader
+  url => {
+    console.warn(`Failed to load ${url}, continuing…`);
+    hidePreloader();
+  }
+);
+
 
 // ───────────────────────────────────────────────────────
 // 4) GLTF LOADER
 // ───────────────────────────────────────────────────────
 // Pass our manager into the loader so it tracks all loads
-//const loader = new GLTFLoader(manager);
+const loader = new GLTFLoader(manager);
 
 // ───────────────────────────────────────────────────────
 // 5) SCENE SETUP
