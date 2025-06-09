@@ -691,7 +691,7 @@ function animateBBButton() {
 
 // Main loop
 function animate() {
-  const tNow = performance.now() * 0.001;  // seconds
+  const tNow = performance.now() * 0.001; // seconds
 
   // ── Drop spawner & updater ──
   drops.forEach(d => {
