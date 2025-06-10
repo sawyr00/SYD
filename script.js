@@ -298,7 +298,6 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
- ← this closing brace *and* parenthesis must match the opening loader.load(
 
 
 // ─── Seed per-instance randomness ───────────────────────
