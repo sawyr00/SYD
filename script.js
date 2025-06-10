@@ -247,9 +247,15 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 // ───────────────────────────────────────────────────────
 // ─── 4.1) RAIN INSTANCING SETUP ─────────────────────────
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
-// by child index (if it's the second node)
-const src = gltf.scene.children[1];
- if (!src) { console.error('No candy-shell mesh found!'); return; }
+// ✅ find the first true Mesh in the loaded candy‐shell glTF
+let src = null;
+gltf.scene.traverse(o => {
+  if (o.isMesh && !src) src = o;
+});
+if (!src) {
+  console.error('No candy‐shell mesh found in glTF!');
+  return;
+}
 
   // 1) seed randomness
   for (let i = 0; i < RAIN_TOTAL; i++) {
