@@ -256,6 +256,8 @@ if (!src) {
   console.error('No candy‐shell mesh found in glTF!');
   return;
 }
+// ❷ capture its original scale
+const baseScale = src.scale.clone();  // ← store this
 
   // 1) seed randomness
   for (let i = 0; i < RAIN_TOTAL; i++) {
@@ -792,7 +794,7 @@ if (rainMesh) {
     quat.multiply(spinQ);
 
     // 5) **reset uniform scale** here—
-    scl.setScalar(scales[i]);
+    scl.copy(baseScale).multiplyScalar(scales[i]);
 
     // 6) fade in/out
     const fi = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
