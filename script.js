@@ -154,23 +154,10 @@ function initDrops(srcMesh) {
   dropMaterial = srcMesh.material.clone();
 
   for (let i = 0; i < RAIN_TOTAL; i++) {
-    // your existing per-drop state
-    drops.push({
-      mesh:      null,
-      spawnTime: Math.random() * 5,
-      speed:     1 + Math.random() * 2,
-      rotVel:    new THREE.Vector3(
-                    Math.random() * 0.02,
-                    Math.random() * 0.02,
-                    Math.random() * 0.02
-                 )
-    });
-
-    // **new:** fill the instanced-mesh randomness arrays
-    fallSpeeds[i] = 1 + Math.random() * 2;                             // same range you used above
+    fallSpeeds[i] = 1 + Math.random() * 2;
     rotAxes   [i] = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
-    rotSpeeds [i] = THREE.MathUtils.randFloat(0.01, 0.05);            // spin speed range
-    scales    [i] = 0.2;                                               // your uniform scale
+    rotSpeeds [i] = THREE.MathUtils.randFloat(0.01, 0.05);
+    scales    [i] = 0.2;
   }
 }
 
@@ -264,28 +251,23 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   const src = gltf.scene.getObjectByProperty('isMesh', true);
   if (!src) return console.error('No mesh found!');
 
-  // extract geometry + material once
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent = true;
-  mat.depthWrite = false;          // allow proper alpha blending
+  mat.depthWrite  = false;
 
-  // make an InstancedMesh of RAIN_TOTAL
   rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_TOTAL);
   rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   scene.add(rainMesh);
 
-  // per-instance opacity
+  // instanceOpacity attr
   const op = new Float32Array(RAIN_TOTAL).fill(0);
   rainMesh.geometry.setAttribute(
     'instanceOpacity',
     new THREE.InstancedBufferAttribute(op, 1)
   );
 
-  // helper dummy
   rainDummy = new THREE.Object3D();
-
-  // initialize random positions & opacities
   for (let i = 0; i < RAIN_TOTAL; i++) {
     rainDummy.position.set(
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
@@ -294,7 +276,7 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
     );
     rainDummy.updateMatrix();
     rainMesh.setMatrixAt(i, rainDummy.matrix);
-    op[i] = 0; // we’ll fade in
+    op[i] = 0;
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
@@ -747,8 +729,7 @@ if (pulseActive) {
 
 // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
 if (rainMesh) {
-  // grab references
-  const attrs = rainMesh.geometry.attributes.instanceOpacity.array;
+  const opAttr = rainMesh.geometry.attributes.instanceOpacity.array;
   const tmpMat = new THREE.Matrix4();
   const pos    = new THREE.Vector3();
   const quat   = new THREE.Quaternion();
@@ -756,48 +737,42 @@ if (rainMesh) {
   const mat    = new THREE.Matrix4();
 
   for (let i = 0; i < RAIN_TOTAL; i++) {
-    // 1) pull out this instance’s matrix
     rainMesh.getMatrixAt(i, tmpMat);
     tmpMat.decompose(pos, quat, scl);
 
-    // 2) apply fall speed
+    // 1) fall
     pos.y -= fallSpeeds[i];
 
-    // 3) respawn if off-bounds
+    // 2) respawn if below kill
     if (pos.y <= KILL_Y) {
-      pos.y = THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX);
-      pos.x = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
-      pos.z = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
+      pos.set(
+        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+        THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+      );
     }
 
-    // 4) spin around its axis
+    // 3) spin
     const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
     quat.multiply(spinQ);
 
-    // 5) restore its intended uniform scale
+    // 4) scale
     scl.setScalar(scales[i]);
 
-    // 6) compute fade-in/out
-    const fi = THREE.MathUtils.clamp(
-      (pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN),
-      0, 1
-    );
-    const fo = THREE.MathUtils.clamp(
-      (SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y),
-      0, 1
-    );
-    const f = Math.min(fi, fo);
-    attrs[i] = f;
+    // 5) fade
+    const fi = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
+    const fo = THREE.MathUtils.clamp((SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y), 0, 1);
+    opAttr[i] = Math.min(fi, fo);
 
-    // 7) write back the updated transform
+    // 6) write back
     mat.compose(pos, quat, scl);
     rainMesh.setMatrixAt(i, mat);
   }
 
-  // flag the attributes & instance matrix as dirty
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
   rainMesh.instanceMatrix.needsUpdate                    = true;
 }
+
 
   // pulsation & BB-button
   pulsateModel();
