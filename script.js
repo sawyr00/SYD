@@ -268,16 +268,24 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   );
 
   rainDummy = new THREE.Object3D();
-  for (let i = 0; i < RAIN_TOTAL; i++) {
-    rainDummy.position.set(
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-    );
-    rainDummy.updateMatrix();
-    rainMesh.setMatrixAt(i, rainDummy.matrix);
-    op[i] = 0;
-  }
+// initialize random positions, scales & opacities
+for (let i = 0; i < RAIN_TOTAL; i++) {
+  // 1) position
+  rainDummy.position.set(
+    THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+    THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+    THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+  );
+
+  // 2) uniform scale from your scatterer
+  rainDummy.scale.setScalar( scales[i] );   // ← this line!
+
+  // 3) apply and store
+  rainDummy.updateMatrix();
+  rainMesh.setMatrixAt(i, rainDummy.matrix);
+  op[i] = 0;
+}
+
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
 
