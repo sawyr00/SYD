@@ -129,6 +129,13 @@ const SPAWN_XZ_RAD     = 50;    // ±range in X and Z
 const KILL_Y           = -30;   // when to remove them
 const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
 
+// per-instance randomness arrays
+const fallSpeeds = [];   // how fast each drop falls
+const rotAxes    = [];   // spin axis per drop
+const rotSpeeds  = [];   // spin speed per drop
+const scales     = [];   // uniform scale per drop
+// ───────────────────────────────────────────────────────
+
 // alias for our instanced loop
 const RAIN_COUNT = RAIN_TOTAL;
 
@@ -732,42 +739,56 @@ if (pulseActive) {
 
 // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
 if (rainMesh) {
-  const attrs = rainMesh.geometry.attributes;
-  const pos   = new THREE.Vector3();
-  const quat  = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-  const mat   = new THREE.Matrix4();
+  // grab references
+  const attrs = rainMesh.geometry.attributes.instanceOpacity.array;
+  const tmpMat = new THREE.Matrix4();
+  const pos    = new THREE.Vector3();
+  const quat   = new THREE.Quaternion();
+  const scl    = new THREE.Vector3();
+  const mat    = new THREE.Matrix4();
 
   for (let i = 0; i < RAIN_TOTAL; i++) {
-    rainMesh.getMatrixAt(i, mat);
-    mat.decompose(pos, quat, scale);
+    // 1) pull out this instance’s matrix
+    rainMesh.getMatrixAt(i, tmpMat);
+    tmpMat.decompose(pos, quat, scl);
 
-    // fall
-    pos.y -= THREE.MathUtils.randFloat(0.02, 0.1);
+    // 2) apply fall speed
+    pos.y -= fallSpeeds[i];
 
-    // respawn if off-bounds
+    // 3) respawn if off-bounds
     if (pos.y <= KILL_Y) {
       pos.y = THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX);
       pos.x = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
       pos.z = THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD);
     }
 
-    // fade in/out
-    const fi = THREE.MathUtils.clamp(
-      (pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1
-    );
-    const fy = THREE.MathUtils.clamp(
-      (SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y), 0, 1
-    );
-    const f  = Math.min(fi, fy);
+    // 4) spin around its axis
+    const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
+    quat.multiply(spinQ);
 
-    mat.compose(pos, quat, scale);
+    // 5) restore its intended uniform scale
+    scl.setScalar(scales[i]);
+
+    // 6) compute fade-in/out
+    const fi = THREE.MathUtils.clamp(
+      (pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN),
+      0, 1
+    );
+    const fo = THREE.MathUtils.clamp(
+      (SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y),
+      0, 1
+    );
+    const f = Math.min(fi, fo);
+    attrs[i] = f;
+
+    // 7) write back the updated transform
+    mat.compose(pos, quat, scl);
     rainMesh.setMatrixAt(i, mat);
-    attrs.instanceOpacity.array[i] = f;
   }
 
-  attrs.instanceOpacity.needsUpdate   = true;
-  rainMesh.instanceMatrix.needsUpdate = true;
+  // flag the attributes & instance matrix as dirty
+  rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
+  rainMesh.instanceMatrix.needsUpdate                    = true;
 }
 
   // pulsation & BB-button
