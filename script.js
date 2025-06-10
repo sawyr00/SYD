@@ -280,7 +280,7 @@ for (let i = 0; i < RAIN_TOTAL; i++) {
 
 
   // 2) uniform scale from your scatterer
-  rainDummy.scale.setScalar( scales[i] );   // ← this line!
+rainDummy.scale.setScalar( scales[i] );   // ← enforce your per-instance 0.2 size here
 
   // 3) apply and store
   rainDummy.updateMatrix();
