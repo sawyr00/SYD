@@ -285,18 +285,25 @@ const baseScale = src.scale.clone();  // ← store this
   );
 
   // 3) initialize positions + scales
-  rainDummy = new THREE.Object3D();
-  for (let i = 0; i < RAIN_TOTAL; i++) {
-    rainDummy.position.set(
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-    );
-    rainDummy.scale.setScalar(scales[i]); // enforce uniform 0.2 size
-    rainDummy.updateMatrix();
-    rainMesh.setMatrixAt(i, rainDummy.matrix);
-    op[i] = 0;
-  }
+ rainDummy = new THREE.Object3D();
+
+for (let i = 0; i < RAIN_TOTAL; i++) {
+  // 1) position
+  rainDummy.position.set(
+    THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+    THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+    THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+  );
+
+  // 2) uniform scale from your scatterer × original mesh scale
+  rainDummy.scale.copy(baseScale).multiplyScalar(scales[i]);
+
+  // 3) apply and store
+  rainDummy.updateMatrix();
+  rainMesh.setMatrixAt(i, rainDummy.matrix);
+  op[i] = 0;
+}
+
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });  // ← this closing brace *and* parenthesis must match the opening loader.load(
 
