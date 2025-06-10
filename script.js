@@ -246,25 +246,28 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 // ───────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
 // 4.1) RAIN INSTANCING SETUP
 // ───────────────────────────────────────────────────────
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
-  // 👉 grab the correct mesh by index
-  const src = gltf.scene.children[1];
+  // ► Replace this with the index/name you discovered
+  const src = gltf.scene.children[2];  
+  // const src = gltf.scene.getObjectByName('CandyShell');
+
   if (!src || !src.isMesh) {
-    console.error('No candy-shell mesh found in GLTF!');
+    console.error('❌ Candy shell not found! Check your selector.');
     return;
   }
 
-  // 1) seed randomness BEFORE instancing
+  // 1) seed randomness first
   for (let i = 0; i < RAIN_TOTAL; i++) {
     fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
     rotAxes[i]    = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
     rotSpeeds[i]  = THREE.MathUtils.randFloat(0.01, 0.05);
-    scales[i]     = 0.2;
+    scales[i]     = 0.2; // uniform per‐instance scale
   }
 
-  // 2) build the InstancedMesh
+  // 2) build InstancedMesh
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent = true;
@@ -274,14 +277,14 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   scene.add(rainMesh);
 
-  // 3) add per-instance opacity attribute
+  // 3) per-instance opacity
   const op = new Float32Array(RAIN_TOTAL).fill(0);
   rainMesh.geometry.setAttribute(
     'instanceOpacity',
     new THREE.InstancedBufferAttribute(op, 1)
   );
 
-  // 4) initialize random positions & uniform scale
+  // 4) initialize random position & scale
   rainDummy = new THREE.Object3D();
   for (let i = 0; i < RAIN_TOTAL; i++) {
     rainDummy.position.set(
@@ -289,12 +292,12 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
       THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
     );
-    // ✔️ enforce your per-instance 0.2 size
+    // enforce the uniform scale you seeded
     rainDummy.scale.setScalar(scales[i]);
 
     rainDummy.updateMatrix();
     rainMesh.setMatrixAt(i, rainDummy.matrix);
-    op[i] = 0;  // start invisible
+    op[i] = 0; // start invisible
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
