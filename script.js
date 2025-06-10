@@ -152,17 +152,25 @@ let dropGeometry, dropMaterial;
 function initDrops(srcMesh) {
   dropGeometry = srcMesh.geometry;
   dropMaterial = srcMesh.material.clone();
+
   for (let i = 0; i < RAIN_TOTAL; i++) {
+    // your existing per-drop state
     drops.push({
       mesh:      null,
       spawnTime: Math.random() * 5,
       speed:     1 + Math.random() * 2,
       rotVel:    new THREE.Vector3(
-                   Math.random()*0.02,
-                   Math.random()*0.02,
-                   Math.random()*0.02
+                    Math.random() * 0.02,
+                    Math.random() * 0.02,
+                    Math.random() * 0.02
                  )
     });
+
+    // **new:** fill the instanced-mesh randomness arrays
+    fallSpeeds[i] = 1 + Math.random() * 2;                             // same range you used above
+    rotAxes   [i] = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+    rotSpeeds [i] = THREE.MathUtils.randFloat(0.01, 0.05);            // spin speed range
+    scales    [i] = 0.2;                                               // your uniform scale
   }
 }
 
