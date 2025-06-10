@@ -277,6 +277,8 @@ for (let i = 0; i < RAIN_TOTAL; i++) {
     THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
   );
 
+
+
   // 2) uniform scale from your scatterer
   rainDummy.scale.setScalar( scales[i] );   // ← this line!
 
@@ -751,6 +753,7 @@ if (pulseActive) {
   
 
 // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
+// inside animate(), in your instanced‐mesh update:
 if (rainMesh) {
   const opAttr = rainMesh.geometry.attributes.instanceOpacity.array;
   const tmpMat = new THREE.Matrix4();
@@ -760,13 +763,14 @@ if (rainMesh) {
   const mat    = new THREE.Matrix4();
 
   for (let i = 0; i < RAIN_TOTAL; i++) {
+    // 1) pull matrix out
     rainMesh.getMatrixAt(i, tmpMat);
     tmpMat.decompose(pos, quat, scl);
 
-    // 1) fall
+    // 2) apply fall
     pos.y -= fallSpeeds[i];
 
-    // 2) respawn if below kill
+    // 3) respawn if below kill-plane
     if (pos.y <= KILL_Y) {
       pos.set(
         THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
@@ -775,19 +779,19 @@ if (rainMesh) {
       );
     }
 
-    // 3) spin
+    // 4) spin
     const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
     quat.multiply(spinQ);
 
-    // 4) scale
+    // 5) **reset uniform scale** here—
     scl.setScalar(scales[i]);
 
-    // 5) fade
+    // 6) fade in/out
     const fi = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
     const fo = THREE.MathUtils.clamp((SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y), 0, 1);
     opAttr[i] = Math.min(fi, fo);
 
-    // 6) write back
+    // 7) write back transform + opacity
     mat.compose(pos, quat, scl);
     rainMesh.setMatrixAt(i, mat);
   }
@@ -795,6 +799,7 @@ if (rainMesh) {
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
   rainMesh.instanceMatrix.needsUpdate                    = true;
 }
+
 
 
   // pulsation & BB-button
