@@ -251,6 +251,13 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   const src = gltf.scene.getObjectByProperty('isMesh', true);
   if (!src) return console.error('No mesh found!');
 
+   // 1) seed per-instance randomness BEFORE we build any matrices
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    fallSpeeds[i]   = THREE.MathUtils.randFloat(0.02, 0.1);
+    rotAxes[i]      = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+    rotSpeeds[i]    = THREE.MathUtils.randFloat(0.01, 0.05);
+    scales[i]       = 0.2;   // the uniform size you want
+
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent = true;
