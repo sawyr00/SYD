@@ -246,18 +246,19 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 
 // ───────────────────────────────────────────────────────
 // ─── 4.1) RAIN INSTANCING SETUP ─────────────────────────
-
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   const src = gltf.scene.getObjectByProperty('isMesh', true);
   if (!src) return console.error('No mesh found!');
 
-   // 1) seed per-instance randomness BEFORE we build any matrices
+  // 1) seed randomness
   for (let i = 0; i < RAIN_TOTAL; i++) {
-    fallSpeeds[i]   = THREE.MathUtils.randFloat(0.02, 0.1);
-    rotAxes[i]      = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
-    rotSpeeds[i]    = THREE.MathUtils.randFloat(0.01, 0.05);
-    scales[i]       = 0.2;   // the uniform size you want
+    fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
+    rotAxes[i]    = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+    rotSpeeds[i]  = THREE.MathUtils.randFloat(0.01, 0.05);
+    scales[i]     = 0.2;
+  }
 
+  // 2) build instanced mesh
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent = true;
@@ -267,36 +268,29 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   scene.add(rainMesh);
 
-  // instanceOpacity attr
+  // per-instance opacity
   const op = new Float32Array(RAIN_TOTAL).fill(0);
   rainMesh.geometry.setAttribute(
     'instanceOpacity',
     new THREE.InstancedBufferAttribute(op, 1)
   );
 
+  // 3) initialize positions + scales
   rainDummy = new THREE.Object3D();
-// initialize random positions, scales & opacities
-for (let i = 0; i < RAIN_TOTAL; i++) {
-  // 1) position
-  rainDummy.position.set(
-    THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-    THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-    THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-  );
-
-
-
-  // 2) uniform scale from your scatterer
-rainDummy.scale.setScalar( scales[i] );   // ← enforce your per-instance 0.2 size here
-
-  // 3) apply and store
-  rainDummy.updateMatrix();
-  rainMesh.setMatrixAt(i, rainDummy.matrix);
-  op[i] = 0;
-}
-
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    rainDummy.position.set(
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+    );
+    rainDummy.scale.setScalar(scales[i]); // enforce uniform 0.2 size
+    rainDummy.updateMatrix();
+    rainMesh.setMatrixAt(i, rainDummy.matrix);
+    op[i] = 0;
+  }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-});
+});  // ← this closing brace *and* parenthesis must match the opening loader.load(
+
 
 // ─── Seed per-instance randomness ───────────────────────
 // (Place this **immediately** after your Rain Instancing Setup loader block,
