@@ -770,7 +770,6 @@ if (pulseActive) {
   
 
 // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
-// inside animate(), in your instanced‐mesh update:
 if (rainMesh) {
   const opAttr = rainMesh.geometry.attributes.instanceOpacity.array;
   const tmpMat = new THREE.Matrix4();
@@ -780,14 +779,14 @@ if (rainMesh) {
   const mat    = new THREE.Matrix4();
 
   for (let i = 0; i < RAIN_TOTAL; i++) {
-    // 1) pull matrix out
+    // 1) pull out this instance’s matrix
     rainMesh.getMatrixAt(i, tmpMat);
     tmpMat.decompose(pos, quat, scl);
 
     // 2) apply fall
     pos.y -= fallSpeeds[i];
 
-    // 3) respawn if below kill-plane
+    // 3) respawn below kill-plane
     if (pos.y <= KILL_Y) {
       pos.set(
         THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
@@ -800,8 +799,8 @@ if (rainMesh) {
     const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
     quat.multiply(spinQ);
 
-    // 5) **reset uniform scale** here—
-    scl.copy(baseScale).multiplyScalar(scales[i]);
+    // 5) **reset uniform scale here** ← **THIS IS THE KEY LINE**
+    scl.setScalar(scales[i]);
 
     // 6) fade in/out
     const fi = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
