@@ -255,7 +255,7 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   gltf.scene.traverse(o => console.log(`➤ ${o.name || '(no name)'} — ${o.type}`));
   return; // stop here so we can inspect the console output
 
-  }
+  });
 
   // 1) seed randomness first
   for (let i = 0; i < RAIN_TOTAL; i++) {
