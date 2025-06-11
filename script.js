@@ -253,9 +253,7 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   // dump the entire scene graph to see the mesh names/types
   console.log('GLTF children:', gltf.scene.children);
   gltf.scene.traverse(o => console.log(`➤ ${o.name || '(no name)'} — ${o.type}`));
-  return; // stop here so we can inspect the console output
 
-  });
 
   // 1) seed randomness first
   for (let i = 0; i < RAIN_TOTAL; i++) {
