@@ -296,7 +296,7 @@ if (!src) {
     rainDummy.updateMatrix();
     rainMesh.setMatrixAt(i, rainDummy.matrix);
     op[i] = 0;
-  }
+  })
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
 
