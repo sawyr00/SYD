@@ -244,7 +244,22 @@ const pulseAmplitude = 0.3;     // swing magnitude
 const baseDirIntensity = 0.8;   // match your original directional-light intensity
 
 
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    // 1) pull matrix out
+    rainMesh.getMatrixAt(i, tmpMat);
+    tmpMat.decompose(pos, quat, scl);
 
+    // 2) fall
+    pos.y -= fallSpeeds[i];
+
+    // 3) respawn
+    if (pos.y <= KILL_Y) {
+      pos.set(
+        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+        THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+      );
+    }
 
 // ───────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────
@@ -753,22 +768,7 @@ if (rainMesh) {
   const scl    = new THREE.Vector3();
   const mat    = new THREE.Matrix4();
 
-  for (let i = 0; i < RAIN_TOTAL; i++) {
-    // 1) pull matrix out
-    rainMesh.getMatrixAt(i, tmpMat);
-    tmpMat.decompose(pos, quat, scl);
 
-    // 2) fall
-    pos.y -= fallSpeeds[i];
-
-    // 3) respawn
-    if (pos.y <= KILL_Y) {
-      pos.set(
-        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-        THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-      );
-    }
 
     // 4) spin
     const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
