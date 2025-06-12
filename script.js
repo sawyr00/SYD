@@ -767,7 +767,6 @@ if (pulseActive) {
 
 // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
 if (rainMesh) {
-  const opAttr = rainMesh.geometry.attributes.instanceOpacity.array;
   const tmpMat = new THREE.Matrix4();
   const pos    = new THREE.Vector3();
   const quat   = new THREE.Quaternion();
@@ -779,31 +778,19 @@ if (rainMesh) {
     rainMesh.getMatrixAt(i, tmpMat);
     tmpMat.decompose(pos, quat, scl);
 
-    // 2) fall
+    // 2) fall, 3) respawn, 4) spin…
     pos.y -= fallSpeeds[i];
-
-    // 3) respawn
-    if (pos.y <= KILL_Y) {
-      pos.set(
-        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-        THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-      );
-    }
-
-    // 4) spin
+    if (pos.y <= KILL_Y) { /* … */ }
     const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
     quat.multiply(spinQ);
 
-    // 5) **reset uniform scale** to your 0.2 size
+    // ← HERE is where we reset the scale:
     scl.setScalar(scales[i]);
 
-    // 6) fade in/out
+    // 5) fade in/out, 6) compose & write back…
     const fi = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
-    const fo = THREE.MathUtils.clamp((SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y),     0, 1);
+    const fo = THREE.MathUtils.clamp((SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y), 0, 1);
     opAttr[i] = Math.min(fi, fo);
-
-    // 7) write back
     mat.compose(pos, quat, scl);
     rainMesh.setMatrixAt(i, mat);
   }
@@ -811,6 +798,7 @@ if (rainMesh) {
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
   rainMesh.instanceMatrix.needsUpdate                    = true;
 }
+
 
 
   // pulsation & BB-button
