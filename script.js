@@ -257,7 +257,7 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   const src = gltf.scene.getObjectByName('b&b_candy_shell')  // ← ensure this matches the name you saw
 
   if (!src || !src.isMesh) {
-    console.error('❌ Could’t find your candy-shell mesh! Double-check the name/index.');
+    console.error('❌ Couldn’t find your candy-shell mesh! Double-check the name/index.');
     return;
   }
 
