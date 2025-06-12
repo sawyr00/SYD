@@ -254,6 +254,11 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   console.log('GLTF children:', gltf.scene.children);
   gltf.scene.traverse(o => console.log(`➤ ${o.name || '(no name)'} — ${o.type}`));
 
+const src = gltf.scene.getObjectByProperty('isMesh', true);
+if (!src) {
+  console.error('Candy-shell mesh not found in GLTF!');
+  return;
+}
 
   // 1) seed randomness first
   for (let i = 0; i < RAIN_TOTAL; i++) {
