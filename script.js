@@ -252,22 +252,19 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 // 4.1) RAIN INSTANCING SETUP
 // ───────────────────────────────────────────────────────
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
-
-  // STEP 1: dump everything so we can see names/types in the console:
+  // STEP 1: dump the scene to inspect
   console.log('⎻⎻⎻ GLTF scene graph ⎻⎻⎻');
-  gltf.scene.traverse(o => {
-    console.log(`➤ ${o.name || '<no name>'} — ${o.type}`);
-  });
+  gltf.scene.traverse(o => console.log(`➤ ${o.name || '<no name>'} — ${o.type}`));
   console.log('⎼⎼⎼ end dump ⎼⎼⎼');
 
-  // STEP 2: pick the first mesh you find
-const src = gltf.scene.getObjectByName('b&b_candy_shell');
-if (!src) {
-  console.error('❌ could not find your candy-shell mesh!');
-  return;
-}
+  // STEP 2: find the mesh
+  const src = gltf.scene.getObjectByProperty('isMesh', true);
+  if (!src) {
+    console.error('❌ No mesh found!');
+    return;
+  }
 
-  // STEP 3: use its geometry/material for instancing
+  // STEP 3: build the InstancedMesh
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent = true;
@@ -277,16 +274,13 @@ if (!src) {
   rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   scene.add(rainMesh);
 
-  // STEP 4: per-instance opacity buffer
+  // STEP 4: per-instance opacity
   const op = new Float32Array(RAIN_TOTAL).fill(0);
-  rainMesh.geometry.setAttribute(
-    'instanceOpacity',
-    new THREE.InstancedBufferAttribute(op, 1)
-  );
+  rainMesh.geometry.setAttribute('instanceOpacity', new THREE.InstancedBufferAttribute(op, 1));
 
   // STEP 5: seed randomness & initialize matrices
   rainDummy = new THREE.Object3D();
-
+  for (let i = 0; i < RAIN_TOTAL; i++) {
     rainDummy.position.set(
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
       THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
@@ -298,7 +292,6 @@ if (!src) {
     op[i] = 0;
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-
 
 
 // ─── Seed per-instance randomness ───────────────────────
