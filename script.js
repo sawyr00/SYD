@@ -306,17 +306,6 @@ if (!src) {
 // (Place this **immediately** after your Rain Instancing Setup loader block,
 //  i.e. just after `rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;`)
 
-for (let i = 0; i < RAIN_TOTAL; i++) {
-  // falling speeds, matching your old 0.02–0.1 range
-  fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
-
-  // random rotation axis & speed
-  rotAxes[i]   = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
-  rotSpeeds[i] = THREE.MathUtils.randFloat(0.01, 0.05);
-
-  // uniform per-instance scale (drastically smaller)
-  scales[i]    = 0.2;
-}
 
 
 // ───────────────────────────────────────────────────────
