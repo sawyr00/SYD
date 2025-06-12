@@ -254,11 +254,12 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   console.log('GLTF children:', gltf.scene.children);
   gltf.scene.traverse(o => console.log(`➤ ${o.name || '(no name)'} — ${o.type}`));
 
-const src = gltf.scene.getObjectByProperty('isMesh', true);
-if (!src) {
-  console.error('Candy-shell mesh not found in GLTF!');
-  return;
-}
+  const src = gltf.scene.getObjectByName('b&b_candy_shell')  // ← ensure this matches the name you saw
+
+  if (!src || !src.isMesh) {
+    console.error('❌ Could’t find your candy-shell mesh! Double-check the name/index.');
+    return;
+  }
 
   // 1) seed randomness first
   for (let i = 0; i < RAIN_TOTAL; i++) {
@@ -767,6 +768,7 @@ if (pulseActive) {
 
 // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
 if (rainMesh) {
+  const opAttr = rainMesh.geometry.attributes.instanceOpacity.array;
   const tmpMat = new THREE.Matrix4();
   const pos    = new THREE.Vector3();
   const quat   = new THREE.Quaternion();
@@ -778,19 +780,31 @@ if (rainMesh) {
     rainMesh.getMatrixAt(i, tmpMat);
     tmpMat.decompose(pos, quat, scl);
 
-    // 2) fall, 3) respawn, 4) spin…
+    // 2) fall
     pos.y -= fallSpeeds[i];
-    if (pos.y <= KILL_Y) { /* … */ }
+
+    // 3) respawn
+    if (pos.y <= KILL_Y) {
+      pos.set(
+        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+        THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+      );
+    }
+
+    // 4) spin
     const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
     quat.multiply(spinQ);
 
-    // ← HERE is where we reset the scale:
+    // 5) **reset uniform scale** to your 0.2 size
     scl.setScalar(scales[i]);
 
-    // 5) fade in/out, 6) compose & write back…
+    // 6) fade in/out
     const fi = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
-    const fo = THREE.MathUtils.clamp((SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y), 0, 1);
+    const fo = THREE.MathUtils.clamp((SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y),     0, 1);
     opAttr[i] = Math.min(fi, fo);
+
+    // 7) write back
     mat.compose(pos, quat, scl);
     rainMesh.setMatrixAt(i, mat);
   }
@@ -798,7 +812,6 @@ if (rainMesh) {
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
   rainMesh.instanceMatrix.needsUpdate                    = true;
 }
-
 
 
   // pulsation & BB-button
