@@ -292,7 +292,7 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
     op[i] = 0;
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-
+}); 
 
 // ─── Seed per-instance randomness ───────────────────────
 // (Place this **immediately** after your Rain Instancing Setup loader block,
