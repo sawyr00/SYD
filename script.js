@@ -293,23 +293,25 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
     new THREE.InstancedBufferAttribute(op, 1)
   );
 
-  rainDummy = new THREE.Object3D();
+  // 4) initialize positions & scales
+  const dummy = new THREE.Object3D();
   for (let i = 0; i < RAIN_TOTAL; i++) {
-    rainDummy.position.set( … );
-    rainDummy.scale.setScalar(scales[i]);
-    rainDummy.updateMatrix();
-
-    rainMesh.setMatrixAt(i, rainDummy.matrix);
+    dummy.position.set(
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+    );
+    dummy.scale.setScalar(scales[i]);
+    dummy.updateMatrix();
+    rainMesh.setMatrixAt(i, dummy.matrix);
 
     // ← NEW: choose a hue and write it to the instanceColor buffer
     const c = palette[ Math.floor(Math.random() * palette.length) ];
     rainMesh.instanceColor.setXYZ( i, c.r, c.g, c.b );
 
-    op[i] = 0;
+    op[i] = 0;  // start invisible
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-  rainMesh.instanceColor.needsUpdate = true;  // ← don’t forget
-
 });
 
 
