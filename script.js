@@ -757,24 +757,6 @@ if (rainMesh) {
   const mat    = new THREE.Matrix4();
 
 
-
-    // 4) spin
-    const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
-    quat.multiply(spinQ);
-
-    // 5) **reset uniform scale** to your 0.2 size
-    scl.setScalar(scales[i]);
-
-    // 6) fade in/out
-    const fi = THREE.MathUtils.clamp((pos.y - SPAWN_Y_MIN) / (SPAWN_Y_MAX - SPAWN_Y_MIN), 0, 1);
-    const fo = THREE.MathUtils.clamp((SPAWN_Y_MAX - pos.y) / (SPAWN_Y_MAX - KILL_Y),     0, 1);
-    opAttr[i] = Math.min(fi, fo);
-
-    // 7) write back
-    mat.compose(pos, quat, scl);
-    rainMesh.setMatrixAt(i, mat);
-  }
-
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
   rainMesh.instanceMatrix.needsUpdate                    = true;
 }
