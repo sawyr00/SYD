@@ -129,6 +129,23 @@ const SPAWN_XZ_RAD     = 50;    // ±range in X and Z
 const KILL_Y           = -30;   // when to remove them
 const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
 
+// ─── Seed per-instance randomness ───────────────────────
+// (Place this **immediately** after your Rain Instancing Setup loader block,
+//  i.e. just after `rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;`)
+
+for (let i = 0; i < RAIN_TOTAL; i++) {
+  // falling speeds, matching your old 0.02–0.1 range
+  fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
+
+  // random rotation axis & speed
+  rotAxes[i]   = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+  rotSpeeds[i] = THREE.MathUtils.randFloat(0.01, 0.05);
+
+  // uniform per-instance scale (drastically smaller)
+  scales[i]    = 0.2;
+}
+
+
 // per-instance randomness arrays
 const fallSpeeds = [];   // how fast each drop falls
 const rotAxes    = [];   // spin axis per drop
@@ -254,20 +271,14 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   console.log('GLTF children:', gltf.scene.children);
   gltf.scene.traverse(o => console.log(`➤ ${o.name || '(no name)'} — ${o.type}`));
 
-  const src = gltf.scene.getObjectByName('b&b_candy_shell')  // ← ensure this matches the name you saw
-
-  if (!src || !src.isMesh) {
-    console.error('❌ Couldn’t find your candy-shell mesh! Double-check the name/index.');
+  // grab the first mesh node, whatever its name:
+  const src = gltf.scene.getObjectByProperty('isMesh', true);
+  if (!src) {
+    console.error('❌ No mesh found in your GLTF!');
     return;
   }
 
-  // 1) seed randomness first
-  for (let i = 0; i < RAIN_TOTAL; i++) {
-    fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
-    rotAxes[i]    = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
-    rotSpeeds[i]  = THREE.MathUtils.randFloat(0.01, 0.05);
-    scales[i]     = 0.2; // uniform per‐instance scale
-  }
+
 
   // 2) build InstancedMesh
   const geom = src.geometry;
@@ -305,21 +316,6 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
 });
 
 
-// ─── Seed per-instance randomness ───────────────────────
-// (Place this **immediately** after your Rain Instancing Setup loader block,
-//  i.e. just after `rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;`)
-
-for (let i = 0; i < RAIN_TOTAL; i++) {
-  // falling speeds, matching your old 0.02–0.1 range
-  fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
-
-  // random rotation axis & speed
-  rotAxes[i]   = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
-  rotSpeeds[i] = THREE.MathUtils.randFloat(0.01, 0.05);
-
-  // uniform per-instance scale (drastically smaller)
-  scales[i]    = 0.2;
-}
 
 
 // ───────────────────────────────────────────────────────
