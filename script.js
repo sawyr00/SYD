@@ -285,6 +285,8 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   rainMesh.instanceColor = new THREE.InstancedBufferAttribute(
     new Float32Array(RAIN_TOTAL * 3), 3
   );
+rainMesh.geometry.setAttribute('instanceColor', rainMesh.instanceColor);
+
   scene.add(rainMesh);
 
   // 3) per-instance opacity buffer
@@ -312,6 +314,9 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
     op[i] = 0;  // start invisible
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
+// ← tell Three.js to upload the colors to the GPU
+rainMesh.geometry.attributes.instanceColor.needsUpdate = true;
+
 });
 
 
