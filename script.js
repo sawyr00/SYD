@@ -258,7 +258,8 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   gltf.scene.traverse(o => console.log(`➤ ${o.name || '(no name)'} — ${o.type}`));
 
   // grab the first mesh node, whatever its name:
-  const src = gltf.scene.getObjectByProperty('isMesh', true);
+  const src = gltf.scene.getObjectByName('b&b_candy_shell');
+
   if (!src) {
     console.error('❌ No mesh found in your GLTF!');
     return;
