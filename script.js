@@ -283,8 +283,19 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
     new THREE.InstancedBufferAttribute(op, 1)
   );
 
+
+
   // 4) initialize random position & scale
   rainDummy = new THREE.Object3D();
+
+for (let i = 0; i < RAIN_TOTAL; i++) {
+  fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
+  rotAxes[i]    = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+  rotSpeeds[i]  = THREE.MathUtils.randFloat(0.01, 0.05);
+  scales[i]     = 0.2;
+}
+
+
   for (let i = 0; i < RAIN_TOTAL; i++) {
     rainDummy.position.set(
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
