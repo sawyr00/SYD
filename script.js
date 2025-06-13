@@ -296,7 +296,19 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
 
   // 4) initialize random position & scale
   rainDummy = new THREE.Object3D();
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    rainDummy.position.set(
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
+      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
+      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
+    );
+    // enforce the uniform scale you seeded
+    rainDummy.scale.setScalar(scales[i]);
 
+    rainDummy.updateMatrix();
+    rainMesh.setMatrixAt(i, rainDummy.matrix);
+    op[i] = 0; // start invisible
+  }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
 
