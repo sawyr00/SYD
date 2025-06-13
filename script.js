@@ -172,12 +172,7 @@ function initDrops(srcMesh) {
   dropGeometry = srcMesh.geometry;
   dropMaterial = srcMesh.material.clone();
 
-  for (let i = 0; i < RAIN_TOTAL; i++) {
-    fallSpeeds[i] = 1 + Math.random() * 2;
-    rotAxes   [i] = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
-    rotSpeeds [i] = THREE.MathUtils.randFloat(0.01, 0.05);
-    scales    [i] = 0.2;
-  }
+
 }
 
 // Model & rotation state
@@ -301,19 +296,7 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
 
   // 4) initialize random position & scale
   rainDummy = new THREE.Object3D();
-  for (let i = 0; i < RAIN_TOTAL; i++) {
-    rainDummy.position.set(
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-    );
-    // enforce the uniform scale you seeded
-    rainDummy.scale.setScalar(scales[i]);
 
-    rainDummy.updateMatrix();
-    rainMesh.setMatrixAt(i, rainDummy.matrix);
-    op[i] = 0; // start invisible
-  }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
 
@@ -773,22 +756,7 @@ if (rainMesh) {
   const scl    = new THREE.Vector3();
   const mat    = new THREE.Matrix4();
 
-  for (let i = 0; i < RAIN_TOTAL; i++) {
-    // 1) pull matrix out
-    rainMesh.getMatrixAt(i, tmpMat);
-    tmpMat.decompose(pos, quat, scl);
 
-    // 2) fall
-    pos.y -= fallSpeeds[i];
-
-    // 3) respawn
-    if (pos.y <= KILL_Y) {
-      pos.set(
-        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-        THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-        THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-      );
-    }
 
     // 4) spin
     const spinQ = new THREE.Quaternion().setFromAxisAngle(rotAxes[i], rotSpeeds[i]);
