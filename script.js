@@ -280,18 +280,15 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   mat.depthWrite   = false;
   mat.vertexColors = true;
 
-  rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_TOTAL);
-  rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  scene.add(rainMesh);
+  rainMesh = new THREE.InstancedMesh( geom, mat, RAIN_TOTAL );
+  rainMesh.instanceMatrix.setUsage( THREE.DynamicDrawUsage );
+  scene.add( rainMesh );
 
-  // tell Three.js we will set colors via setColorAt()
-  rainMesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
-
-  // 3) opacity buffer
-  const op = new Float32Array(RAIN_TOTAL).fill(0);
+  // 3) per-instance opacity
+  const op = new Float32Array( RAIN_TOTAL ).fill( 0 );
   rainMesh.geometry.setAttribute(
     'instanceOpacity',
-    new THREE.InstancedBufferAttribute(op, 1)
+    new THREE.InstancedBufferAttribute( op, 1 )
   );
 
   // 4) init positions, scales & colors
@@ -302,22 +299,21 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
       THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
     );
-    dummy.scale.setScalar(scales[i]);
+    dummy.scale.setScalar( scales[i] );
     dummy.updateMatrix();
-    rainMesh.setMatrixAt(i, dummy.matrix);
+    rainMesh.setMatrixAt( i, dummy.matrix );
 
-    // pick a random color:
-    const c = palette[Math.floor(Math.random() * palette.length)];
-    rainMesh.setColorAt(i, c);
+    // pick a random hue from your palette:
+    const c = palette[ Math.floor(Math.random()*palette.length) ];
+    rainMesh.setColorAt( i, c );
 
     op[i] = 0;
   }
 
-  // 5) upload buffers
+  // 5) upload the buffers
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-  rainMesh.instanceColor.needsUpdate                       = true;
+  rainMesh.geometry.attributes.instanceColor.needsUpdate   = true;
 });
-
 
 
 // ───────────────────────────────────────────────────────
