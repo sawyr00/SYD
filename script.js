@@ -253,65 +253,46 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 // 4.1) RAIN INSTANCING SETUP
 // ───────────────────────────────────────────────────────
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
-  // dump the entire scene graph to see the mesh names/types
-  console.log('GLTF children:', gltf.scene.children);
-  gltf.scene.traverse(o => console.log(`➤ ${o.name || '(no name)'} — ${o.type}`));
-
-  // grab the first mesh node, whatever its name:
   const src = gltf.scene.getObjectByName('b&b_candy_shell');
+  if (!src || !src.isMesh) return console.error('no mesh!');
 
-  if (!src) {
-    console.error('❌ No mesh found in your GLTF!');
-    return;
+  // seed randomness
+  for (let i = 0; i < RAIN_TOTAL; i++) {
+    fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
+    rotAxes[i]    = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+    rotSpeeds[i]  = THREE.MathUtils.randFloat(0.01, 0.05);
+    scales[i]     = 0.2;
   }
 
-
-
-  // 2) build InstancedMesh
+  // build InstancedMesh
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent = true;
   mat.depthWrite = false;
-
   rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_TOTAL);
   rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   scene.add(rainMesh);
 
-  // 3) per-instance opacity
+  // per-instance opacity
   const op = new Float32Array(RAIN_TOTAL).fill(0);
-  rainMesh.geometry.setAttribute(
-    'instanceOpacity',
-    new THREE.InstancedBufferAttribute(op, 1)
-  );
+  rainMesh.geometry.setAttribute('instanceOpacity', new THREE.InstancedBufferAttribute(op,1));
 
-
-
-  // 4) initialize random position & scale
+  // initialize positions & scales
   rainDummy = new THREE.Object3D();
-
-for (let i = 0; i < RAIN_TOTAL; i++) {
-  fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
-  rotAxes[i]    = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
-  rotSpeeds[i]  = THREE.MathUtils.randFloat(0.01, 0.05);
-  scales[i]     = 0.2;
-}
-
-
   for (let i = 0; i < RAIN_TOTAL; i++) {
     rainDummy.position.set(
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
       THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
     );
-    // enforce the uniform scale you seeded
     rainDummy.scale.setScalar(scales[i]);
-
     rainDummy.updateMatrix();
     rainMesh.setMatrixAt(i, rainDummy.matrix);
-    op[i] = 0; // start invisible
+    op[i] = 0;
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
 });
+
 
 
 
