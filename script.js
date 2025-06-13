@@ -258,14 +258,18 @@ const baseDirIntensity = 0.8;   // match your original directional-light intensi
 // ───────────────────────────────────────────────────────
 // 4.1) RAIN INSTANCING SETUP (Candy-shell drops)
 // ───────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
+// 4.1) RAIN INSTANCING SETUP (Candy-shell drops)
+// ───────────────────────────────────────────────────────
 loader.load('models/b&b_candyshell_yellow.glb', gltf => {
+  // find the one mesh inside the GLTF
   const src = gltf.scene.getObjectByProperty('isMesh', true);
   if (!src) {
     console.error('❌ No mesh found in candy-shell GLTF!');
     return;
   }
 
-  // 1) seed randomness
+  // — STEP 1: seed per-instance randomness arrays —
   for (let i = 0; i < RAIN_TOTAL; i++) {
     fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
     rotAxes[i]    = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
@@ -273,46 +277,59 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
     scales[i]     = 0.2;
   }
 
-  // 2) build InstancedMesh
+  // — STEP 2: build the InstancedMesh with per-vertex color support —
   const geom = src.geometry;
   const mat  = src.material.clone();
   mat.transparent  = true;
   mat.depthWrite   = false;
-  mat.vertexColors = true;
+  mat.vertexColors = true;                // enable per-instance tinting
 
-  rainMesh = new THREE.InstancedMesh( geom, mat, RAIN_TOTAL );
-  rainMesh.instanceMatrix.setUsage( THREE.DynamicDrawUsage );
-  scene.add( rainMesh );
+  rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_TOTAL);
+  rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
-  // 3) per-instance opacity
-  const op = new Float32Array( RAIN_TOTAL ).fill( 0 );
+  // create & attach an instanceColor buffer (+ tell GPU it's dynamic)
+  rainMesh.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(RAIN_TOTAL * 3), 3
+  );
+  rainMesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+  rainMesh.geometry.setAttribute('instanceColor', rainMesh.instanceColor);
+
+  scene.add(rainMesh);
+
+  // — STEP 3: per-instance opacity buffer —
+  const op = new Float32Array(RAIN_TOTAL).fill(0);
   rainMesh.geometry.setAttribute(
     'instanceOpacity',
-    new THREE.InstancedBufferAttribute( op, 1 )
+    new THREE.InstancedBufferAttribute(op, 1)
   );
 
-  // 4) init positions, scales & colors
+  // — STEP 4: initialize positions, scales, **and** colors —
   const dummy = new THREE.Object3D();
   for (let i = 0; i < RAIN_TOTAL; i++) {
+    // position & scale
     dummy.position.set(
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
       THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
       THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
     );
-    dummy.scale.setScalar( scales[i] );
+    dummy.scale.setScalar(scales[i]);
     dummy.updateMatrix();
-    rainMesh.setMatrixAt( i, dummy.matrix );
+    rainMesh.setMatrixAt(i, dummy.matrix);
 
-    // pick a random hue from your palette:
-    const c = palette[ Math.floor(Math.random()*palette.length) ];
-    rainMesh.setColorAt( i, c );
+    // color from your palette array (e.g. [yellow, red, pink, orange, brown])
+    const c = palette[Math.floor(Math.random() * palette.length)];
+    rainMesh.instanceColor.setXYZ(i, c.r, c.g, c.b);
 
+    // start invisible
     op[i] = 0;
   }
 
-  // 5) upload the buffers
+  // — STEP 5: upload buffers to the GPU —
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
   rainMesh.geometry.attributes.instanceColor.needsUpdate   = true;
+
+  // finally hide the preloader (so it can finish)
+  hidePreloader();
 });
 
 
