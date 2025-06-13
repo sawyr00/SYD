@@ -326,7 +326,8 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
 
   // — STEP 5: upload buffers to the GPU —
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-  rainMesh.geometry.attributes.instanceColor.needsUpdate   = true;
+  // ⚠️ ALSO flag the mesh’s own buffer:
+  rainMesh.instanceColor.needsUpdate  = true;
 
   // finally hide the preloader (so it can finish)
   hidePreloader();
