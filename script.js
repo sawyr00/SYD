@@ -133,6 +133,14 @@ const CARTRIDGE_CLEAR_XZ = 10;  // avoid spawning within 10 units of cartridge
 // (Place this **immediately** after your Rain Instancing Setup loader block,
 //  i.e. just after `rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;`)
 
+
+
+// per-instance randomness arrays
+const fallSpeeds = [];   // how fast each drop falls
+const rotAxes    = [];   // spin axis per drop
+const rotSpeeds  = [];   // spin speed per drop
+const scales     = [];   // uniform scale per drop
+
 for (let i = 0; i < RAIN_TOTAL; i++) {
   // falling speeds, matching your old 0.02–0.1 range
   fallSpeeds[i] = THREE.MathUtils.randFloat(0.02, 0.1);
@@ -145,12 +153,6 @@ for (let i = 0; i < RAIN_TOTAL; i++) {
   scales[i]    = 0.2;
 }
 
-
-// per-instance randomness arrays
-const fallSpeeds = [];   // how fast each drop falls
-const rotAxes    = [];   // spin axis per drop
-const rotSpeeds  = [];   // spin speed per drop
-const scales     = [];   // uniform scale per drop
 // ───────────────────────────────────────────────────────
 
 // alias for our instanced loop
