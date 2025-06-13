@@ -142,6 +142,14 @@ const rotSpeeds  = [];   // spin speed per drop
 const scales     = [];   // uniform scale per drop
 
 
+const palette = [
+  new THREE.Color(0xFFFF33), // yellow
+  new THREE.Color(0xFF3333), // red
+  new THREE.Color(0xFF33CC), // pink
+  new THREE.Color(0xFF8800), // orange
+  new THREE.Color(0x8B4513)  // brown
+];
+
 // ───────────────────────────────────────────────────────
 
 // alias for our instanced loop
@@ -271,8 +279,12 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
   const mat  = src.material.clone();
   mat.transparent = true;
   mat.depthWrite = false;
+  mat.vertexColors = true;    // ← enable per-instance tinting
   rainMesh = new THREE.InstancedMesh(geom, mat, RAIN_TOTAL);
   rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  rainMesh.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(RAIN_TOTAL * 3), 3
+  );
   scene.add(rainMesh);
 
   // 3) per-instance opacity buffer
@@ -281,20 +293,23 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
     new THREE.InstancedBufferAttribute(op, 1)
   );
 
-  // 4) initialize positions & scales
-  const dummy = new THREE.Object3D();
+  rainDummy = new THREE.Object3D();
   for (let i = 0; i < RAIN_TOTAL; i++) {
-    dummy.position.set(
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD),
-      THREE.MathUtils.randFloat(SPAWN_Y_MIN, SPAWN_Y_MAX),
-      THREE.MathUtils.randFloatSpread(SPAWN_XZ_RAD)
-    );
-    dummy.scale.setScalar(scales[i]);
-    dummy.updateMatrix();
-    rainMesh.setMatrixAt(i, dummy.matrix);
-    op[i] = 0;  // start invisible
+    rainDummy.position.set( … );
+    rainDummy.scale.setScalar(scales[i]);
+    rainDummy.updateMatrix();
+
+    rainMesh.setMatrixAt(i, rainDummy.matrix);
+
+    // ← NEW: choose a hue and write it to the instanceColor buffer
+    const c = palette[ Math.floor(Math.random() * palette.length) ];
+    rainMesh.instanceColor.setXYZ( i, c.r, c.g, c.b );
+
+    op[i] = 0;
   }
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
+  rainMesh.instanceColor.needsUpdate = true;  // ← don’t forget
+
 });
 
 
