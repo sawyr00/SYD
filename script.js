@@ -37,10 +37,14 @@ const manager = new THREE.LoadingManager(
 
   // onProgress: (url, itemsLoaded, itemsTotal)
   (url, itemsLoaded, itemsTotal) => {
-    // compute percentage
-    const pct = (itemsLoaded / itemsTotal) * 100;
-    document.getElementById('progress-bar').style.width = pct + '%';
+    // ← guard against missing element
+    const bar = document.getElementById('progress-bar');
+    if (bar) {
+      const pct = (itemsLoaded / itemsTotal) * 100;
+      bar.style.width = pct + '%';
+    }
   },
+
 
   // onError: if any asset errors out, still clear the preloader
   url => {
@@ -326,8 +330,7 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
 
   // — STEP 5: upload buffers to the GPU —
   rainMesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-  // ⚠️ ALSO flag the mesh’s own buffer:
-  rainMesh.instanceColor.needsUpdate  = true;
+ rainMesh.instanceColor.needsUpdate                       = true;
 
   // finally hide the preloader (so it can finish)
   hidePreloader();
