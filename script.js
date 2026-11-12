@@ -536,7 +536,7 @@ const tracks = [
   "audio/Spirit gun - Still standing 2.wav",
   "audio/Tactosa - Through The Windshield.wav",
   "audio/whatsdysmorphia - fertile (demo).m4a",
-  "audio/STLIFTER-RISEN.WAV"
+  "audio/STLIFTER-RISEN.wav"
 ];
 // Fisher–Yates shuffle
 function shuffleArray(array) {
