@@ -558,8 +558,8 @@ Object.assign(nowPlaying.style, {
   position: 'fixed', top: '20px', left: '50%',
   transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
   display: 'flex', justifyContent: 'center', alignItems: 'center',
-  WebkitMaskImage: 'linear-gradient(to right, transparent, black 65%, black 100%, transparent)',
-  maskImage: 'linear-gradient(to right, transparent, black 65%, black 100%, transparent)'
+  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%)',
+  maskImage: 'linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%)'
 });
 document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
