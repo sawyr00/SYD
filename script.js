@@ -585,7 +585,8 @@ function updateNowPlaying() {
     const path = tracks[(currentTrack + offset + tracks.length) % tracks.length];
     const trackNumber = path.split('/').pop().slice(0, 2);
     const title = document.createElement('img');
-    title.src = `images/track-titles/${trackNumber}.png`;
+    const suffix = offset === 0 ? '-current' : '';
+    title.src = `images/track-titles/${trackNumber}${suffix}.png`;
     title.alt = getBaseName(path);
     const fade = offset === 0
       ? 'none'
