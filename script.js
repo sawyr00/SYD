@@ -558,8 +558,9 @@ Object.assign(nowPlaying.style, {
   position: 'fixed', top: '20px', left: '50%',
   transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
   display: 'flex', justifyContent: 'center', alignItems: 'center',
-  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%)',
-  maskImage: 'linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%)'
+  // The original fade reached full opacity at 65%. Mirroring it at 50% gives 50/65 opacity there.
+  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.76923) 50%, transparent 100%)',
+  maskImage: 'linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.76923) 50%, transparent 100%)'
 });
 document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
