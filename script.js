@@ -74,7 +74,7 @@ const camera = new THREE.PerspectiveCamera(
 camera.fov = 30; // less distortion
 camera.updateProjectionMatrix();
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
@@ -584,7 +584,7 @@ function updateNowPlaying() {
     title.alt = getBaseName(path);
     const fade = offset === 0
       ? 'none'
-      : `linear-gradient(to ${offset < 0 ? 'right' : 'left'}, transparent, black)`;
+      : `linear-gradient(to ${offset < 0 ? 'right' : 'left'}, transparent, rgba(0, 0, 0, 0.9))`;
     Object.assign(title.style, {
       display: 'block',
       height: 'auto',
