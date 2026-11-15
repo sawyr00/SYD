@@ -558,29 +558,42 @@ Object.assign(nowPlaying.style, {
   position: 'fixed', top: '20px', left: '50%',
   transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
   display: 'flex', justifyContent: 'center', alignItems: 'center',
-  fontFamily: 'Courier New, monospace', fontSize: '18px', fontWeight: 'bold',
-  color: '#7fff7f',
   WebkitMaskImage: 'linear-gradient(to right, transparent, black 65%, black 100%, transparent)',
   maskImage: 'linear-gradient(to right, transparent, black 65%, black 100%, transparent)'
 });
 document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
-nowText.style.display = 'flex'; nowText.style.gap = '40px';
+Object.assign(nowText.style, {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: '40px',
+  width: '100%'
+});
 nowPlaying.appendChild(nowText);
 
 function getBaseName(path) {
-  return path.split('/').pop();
+  return path.split('/').pop().replace(/^\d+ - /, '');
 }
 
 function updateNowPlaying() {
-  const prev = getBaseName(tracks[(currentTrack - 1 + tracks.length) % tracks.length]);
-  const curr = getBaseName(tracks[currentTrack]);
-  const next = getBaseName(tracks[(currentTrack + 1) % tracks.length]);
-  nowText.innerHTML = `
-    <span style="color: rgba(127,255,127,0.3);">${prev}</span>
-    <span style="color: #7fff7f;">${curr}</span>
-    <span style="color: rgba(127,255,127,0.3);">${next}</span>
-  `;
+  const titleImages = [-1, 0, 1].map(offset => {
+    const path = tracks[(currentTrack + offset + tracks.length) % tracks.length];
+    const trackNumber = path.split('/').pop().slice(0, 2);
+    const title = document.createElement('img');
+    title.src = `images/track-titles/${trackNumber}.png`;
+    title.alt = getBaseName(path);
+    Object.assign(title.style, {
+      display: 'block',
+      height: 'auto',
+      maxHeight: '24px',
+      maxWidth: offset === 0 ? '80vw' : 'none',
+      justifySelf: offset === -1 ? 'end' : 'start',
+      opacity: offset === 0 ? '1' : '0.3'
+    });
+    return title;
+  });
+  nowText.replaceChildren(...titleImages);
 }
 // Initial call to show titles
 updateNowPlaying();
