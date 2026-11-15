@@ -567,7 +567,11 @@ Object.assign(nowText.style, {
   alignItems: 'center',
   gap: '40px',
   width: '100%',
-  minWidth: '0'
+  minWidth: '0',
+  fontFamily: 'Impact, "Arial Narrow", sans-serif',
+  fontSize: '18px',
+  lineHeight: '24px',
+  color: '#FF5C0C'
 });
 nowPlaying.appendChild(nowText);
 
@@ -576,19 +580,18 @@ function getBaseName(path) {
 }
 
 function updateNowPlaying() {
-  const titleImages = [-1, 0, 1].map(offset => {
+  const titles = [-1, 0, 1].map(offset => {
     const path = tracks[(currentTrack + offset + tracks.length) % tracks.length];
-    const trackNumber = path.split('/').pop().slice(0, 2);
-    const title = document.createElement('img');
-    title.src = `images/track-titles/${trackNumber}.png`;
-    title.alt = getBaseName(path);
+    const title = document.createElement('span');
+    title.textContent = getBaseName(path);
     const fade = offset === 0
       ? 'none'
       : `linear-gradient(to ${offset < 0 ? 'right' : 'left'}, transparent, rgba(0, 0, 0, 0.9))`;
     Object.assign(title.style, {
       display: 'block',
-      height: 'auto',
-      maxHeight: '24px',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
       maxWidth: offset === 0 ? 'max(0px, calc(80vw - 80px))' : '100%',
       justifySelf: ['end', 'center', 'start'][offset + 1],
       WebkitMaskImage: fade,
@@ -596,7 +599,7 @@ function updateNowPlaying() {
     });
     return title;
   });
-  nowText.replaceChildren(...titleImages);
+  nowText.replaceChildren(...titles);
 }
 // Initial call to show titles
 updateNowPlaying();
