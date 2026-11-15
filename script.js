@@ -557,10 +557,7 @@ const nowPlaying = document.createElement('div');
 Object.assign(nowPlaying.style, {
   position: 'fixed', top: '20px', left: '50%',
   transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
-  display: 'flex', justifyContent: 'center', alignItems: 'center',
-  // The original fade reached full opacity at 65%. Mirroring it at 50% gives 50/65 opacity there.
-  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.76923) 50%, transparent 100%)',
-  maskImage: 'linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.76923) 50%, transparent 100%)'
+  display: 'flex', justifyContent: 'center', alignItems: 'center'
 });
 document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
@@ -585,13 +582,17 @@ function updateNowPlaying() {
     const title = document.createElement('img');
     title.src = `images/track-titles/${trackNumber}.png`;
     title.alt = getBaseName(path);
+    const fade = offset === 0
+      ? 'none'
+      : `linear-gradient(to ${offset < 0 ? 'right' : 'left'}, transparent, black)`;
     Object.assign(title.style, {
       display: 'block',
       height: 'auto',
       maxHeight: '24px',
-      maxWidth: offset === 0 ? 'max(0px, calc(80vw - 80px))' : 'none',
+      maxWidth: offset === 0 ? 'max(0px, calc(80vw - 80px))' : '100%',
       justifySelf: ['end', 'center', 'start'][offset + 1],
-      opacity: offset === 0 ? '1' : '0.3'
+      WebkitMaskImage: fade,
+      maskImage: fade
     });
     return title;
   });
