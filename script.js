@@ -553,6 +553,11 @@ function maybeStartAudio() {
 }
 
 // Now Playing overlay with titles
+const titleBackdrop = document.createElement('div');
+titleBackdrop.className = 'track-title-backdrop';
+titleBackdrop.setAttribute('aria-hidden', 'true');
+document.body.appendChild(titleBackdrop);
+
 const nowPlaying = document.createElement('div');
 Object.assign(nowPlaying.style, {
   position: 'fixed', top: '20px', left: '50%',

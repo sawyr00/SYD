@@ -13,6 +13,14 @@ canvas {
   display: block;
 }
 
+.track-title-backdrop {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 72px;
+  background: linear-gradient(to bottom, black 56px, transparent);
+  pointer-events: none;
+}
+
 .gui-button {
   position: absolute;
   top: 10px;
