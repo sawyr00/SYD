@@ -520,23 +520,16 @@ renderer.domElement.addEventListener('mouseup', () => {
 
 // Audio setup
 const tracks = [
-  "audio/02-cold_piece-ocd_(feat._snuffed_on_sight).mp3",
-  "audio/B3 Filth Foragers.wav",
-  "audio/Chain Gang - Problem Solver.mp3",
-  "audio/DTG - SPOOKY SLIME 10 QUICK SAND MASTER 2 (Louder).mp3",
-  "audio/DTW - Backseat Lobotomy.wav",
-  "audio/IRON GAINS - WILLING TO SUFFER - SONG 4 MIX V.4.wav",
-  "audio/KWC - Informent Torment.wav",
-  "audio/Lurkin - DEERGOD.wav",
-  "audio/Phantomhorde - Shedding The Velvet (Final Mix).mp3",
-  "audio/primal horde - the sixth hunt (alt._ending_raw_unreleased).mp4",
-  "audio/Resurrected Divinity - Death Bed Revelation (feat. 10SCOOPS).mp3",
-  "audio/slamwich - tba (boofed mix).m4a",
-  "audio/Snuffed on Sight - The Bay Slam II.mp3",
-  "audio/Spirit gun - Still standing 2.wav",
-  "audio/Tactosa - Through The Windshield.wav",
-  "audio/whatsdysmorphia - fertile (demo).m4a",
-  "audio/STLIFTER-RISEN.wav"
+  "audio/01 - JARRYXSPRINGER - daytime tv.mp3",
+  "audio/02 - HEMATIDROSIS - Onward To Babylon.mp3",
+  "audio/03 - DC - TODA2000.mp3",
+  "audio/04 - CROWN VIC - BENEATH THE ROT FEAT. MORBID ANGEL.mp3",
+  "audio/05 - DREW THE ARCHITETCT - SEARING GRIP.mp3",
+  "audio/06 - 10SCOOPS - CAREER VICTIM.mp3",
+  "audio/07 - Hewhocorrupts - Suge Knight is at My BBQ.mp3",
+  "audio/08 - SMILEY - Game Goofy.mp3",
+  "audio/09 - whatsdysmorphiaxboltcutter - placenta jesus.mp3",
+  "audio/10 - SNUFFED ON SIGHT - ALL TALK   BLUNT COUGH (DJ MRD REMIX).mp3"
 ];
 // Fisher–Yates shuffle
 function shuffleArray(array) {
@@ -596,7 +589,7 @@ updateNowPlaying();
 function togglePlayPause() {
   userHasPressedPlay = true;
   if (audio.paused) {
-    audio.play(); setupAudioContext();
+    audio.play();
     document.getElementById('playPauseBtn').style.backgroundImage = 'url("images/playpause.png")';
   } else {
     audio.pause();
@@ -604,22 +597,20 @@ function togglePlayPause() {
   }
 }
 
-function setupAudioContext() {
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const analyser = audioCtx.createAnalyser();
-  const source = audioCtx.createMediaElementSource(audio);
-  source.connect(analyser); analyser.connect(audioCtx.destination);
-  analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.3;
+function changeTrack(offset) {
+  const wasPlaying = !audio.paused;
+  currentTrack = (currentTrack + offset + tracks.length) % tracks.length;
+  audio.src = tracks[currentTrack];
+  updateNowPlaying();
+  if (wasPlaying) audio.play();
 }
 
 function nextTrack() {
-  currentTrack = (currentTrack + 1) % tracks.length;
-  audio.src = tracks[currentTrack]; updateNowPlaying(); if (!audio.paused) audio.play();
+  changeTrack(1);
 }
 
 function prevTrack() {
-  currentTrack = (currentTrack - 1 + tracks.length) % tracks.length;
-  audio.src = tracks[currentTrack]; updateNowPlaying(); if (!audio.paused) audio.play();
+  changeTrack(-1);
 }
 
 function toggleMute(btn) {
