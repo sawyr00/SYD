@@ -571,7 +571,7 @@ Object.assign(nowText.style, {
   fontFamily: 'Impact, "Arial Narrow", sans-serif',
   fontSize: '18px',
   lineHeight: '24px',
-  color: '#FF5C0C'
+  color: '#FF4D0C'
 });
 nowPlaying.appendChild(nowText);
 
