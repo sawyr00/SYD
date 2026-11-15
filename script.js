@@ -565,10 +565,11 @@ document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
 Object.assign(nowText.style, {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '40px',
-  width: '100%'
+  width: '100%',
+  minWidth: '0'
 });
 nowPlaying.appendChild(nowText);
 
@@ -587,8 +588,8 @@ function updateNowPlaying() {
       display: 'block',
       height: 'auto',
       maxHeight: '24px',
-      maxWidth: offset === 0 ? '80vw' : 'none',
-      justifySelf: offset === -1 ? 'end' : 'start',
+      maxWidth: offset === 0 ? 'max(0px, calc(80vw - 80px))' : 'none',
+      justifySelf: ['end', 'center', 'start'][offset + 1],
       opacity: offset === 0 ? '1' : '0.3'
     });
     return title;
