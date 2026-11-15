@@ -524,7 +524,7 @@ const tracks = [
   "audio/02 - HEMATIDROSIS - Onward To Babylon.mp3",
   "audio/03 - DC - TODA2000.mp3",
   "audio/04 - CROWN VIC - BENEATH THE ROT FEAT. MORBID ANGEL.mp3",
-  "audio/05 - DREW THE ARCHITETCT - SEARING GRIP.mp3",
+  "audio/05 - DREW THE ARCHITECT - SEARING GRIP.mp3",
   "audio/06 - 10SCOOPS - CAREER VICTIM.mp3",
   "audio/07 - Hewhocorrupts - Suge Knight is at My BBQ.mp3",
   "audio/08 - SMILEY - Game Goofy.mp3",
