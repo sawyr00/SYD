@@ -13,6 +13,16 @@ canvas {
   display: block;
 }
 
+.icon-button-shadow {
+  position: fixed;
+  z-index: 9;
+  pointer-events: none;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: brightness(0) drop-shadow(0 6px 5px #000) drop-shadow(0 10px 9px #000);
+}
+
 .track-title-backdrop {
   position: fixed;
   inset: 0 0 auto;

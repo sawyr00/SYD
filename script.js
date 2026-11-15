@@ -690,13 +690,34 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
     });
   }
 
-  document.body.appendChild(btn);
-
   if (id === 'bbBtn') {
     btn.style.display    = 'none';
     btn.style.boxShadow  = '0 0 15px 3px rgba(255,0,0,0.7)';
     btn.style.transition = 'box-shadow 0.3s ease';
   }
+
+  const shadow = document.createElement('div');
+  shadow.className = 'icon-button-shadow';
+  shadow.setAttribute('aria-hidden', 'true');
+  Object.assign(shadow.style, {
+    top: btn.style.top,
+    right: btn.style.right,
+    width: btn.style.width,
+    height: btn.style.height
+  });
+  const syncShadow = () => {
+    Object.assign(shadow.style, {
+      backgroundImage: btn.style.backgroundImage,
+      display: btn.style.display,
+      transform: btn.style.transform
+    });
+  };
+  syncShadow();
+  new MutationObserver(syncShadow).observe(btn, {
+    attributes: true,
+    attributeFilter: ['style']
+  });
+  document.body.append(shadow, btn);
 
   return btn;
 }
