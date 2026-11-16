@@ -7,6 +7,7 @@ console.log('🟢 script.js has started running');
 import * as THREE    from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
+import { identifyNarbyRegions } from './face-regions.js';
 
 // ───────────────────────────────────────────────────────
 // 2) PRELOADER HIDING
@@ -298,7 +299,7 @@ loader.load('models/Narby_Head-Web.glb', gltf => {
   head.position.sub(box.getCenter(new THREE.Vector3()));
   model = new THREE.Group();
   model.add(head);
-  prepareFaceStretch(head, size.y);
+  prepareFaceStretch(head, size);
   model.traverse(c => {
     if (c.isMesh) {
       c.castShadow    = true;
@@ -353,6 +354,7 @@ function smoothResetCamera() {
   const faceReset = faceMeshes
     .filter(part => part.changed)
     .map(part => ({ part, start: part.position.array.slice() }));
+  for (const anchor of faceAnchors) anchor.offset.set(0, 0, 0);
   resetInProgress = true;
   turnVelocity.set(0, 0);
   controls.enabled = false;
@@ -379,7 +381,11 @@ function smoothResetCamera() {
     );
     model.quaternion.slerpQuaternions(startRotation, frontRotation, eased);
     controls.target.lerpVectors(startTarget, center, eased);
-    resetFacePose(faceReset, t);
+    if (faceReset.length) {
+      const faceProgress = Math.min(t * 2, 1);
+      resetFacePose(faceReset, faceProgress);
+      if (faceProgress === 1) faceReset.length = 0;
+    }
     controls.update();
     if (t < 1) requestAnimationFrame(frame);
     else {
@@ -507,8 +513,11 @@ if (!isHeld && !resetInProgress) {
 
 // Drag to stretch the face. Pointer events share the same path for mouse and touch.
 const faceMeshes = [];
-let faceHeight = 0;
+const faceAnchors = [];
+const skinAnchors = [];
+let faceStretchUnlocked = false;
 let faceGrab = null;
+let maxFacePull = 0;
 const faceRay = new THREE.Raycaster();
 const facePointer = new THREE.Vector2();
 const faceVertex = new THREE.Vector3();
@@ -516,8 +525,21 @@ const faceHit = new THREE.Vector3();
 const faceDelta = new THREE.Vector3();
 const faceNormal = new THREE.Vector3();
 
-function prepareFaceStretch(head, height) {
-  faceHeight = height;
+// Coordinates are fractions of the half-width and half-height of Narby's neutral head.
+const narbyGrabPoints = [
+  [-0.59, 0.06], [0.59, 0.06],   // cheeks
+  [0, -0.05],                    // muzzle
+  [-0.46, -0.30], [0.46, -0.30], // mouth corners
+  [0, -0.74],                    // chin
+  [-0.43, 0.36], [0.43, 0.36],   // temples
+  [0, 0.54]                      // forehead
+];
+
+function prepareFaceStretch(head, size) {
+  model.updateMatrixWorld(true);
+  const regionAnchors = new Map();
+  const earRegions = new Map();
+  const followers = [];
   head.traverse(mesh => {
     if (!mesh.isMesh) return;
     mesh.geometry = mesh.geometry.clone();
@@ -525,14 +547,96 @@ function prepareFaceStretch(head, height) {
     if (!position) return;
     const normal = mesh.geometry.getAttribute('normal');
     position.setUsage(THREE.DynamicDrawUsage);
-    faceMeshes.push({
+    const part = {
       mesh,
       position,
       neutral: position.array.slice(),
       neutralNormals: normal?.array.slice(),
+      inverseLinear: new THREE.Matrix3().setFromMatrix4(mesh.matrixWorld.clone().invert()),
+      regions: new Array(position.count),
+      vertices: [],
       changed: false
-    });
+    };
+    faceMeshes.push(part);
+    for (const region of identifyNarbyRegions(position.array, mesh.geometry.index.array)) {
+      for (const index of region.vertices) part.regions[index] = region;
+      if (region.name === 'skin') continue;
+      if (region.follower) {
+        followers.push({ part, region });
+        continue;
+      }
+      if (!regionAnchors.has(region.name)) {
+        const anchor = { offset: new THREE.Vector3(), parts: new Set() };
+        regionAnchors.set(region.name, anchor);
+        faceAnchors.push(anchor);
+      }
+      region.anchor = regionAnchors.get(region.name);
+      region.anchor.parts.add(part);
+      if (region.name.endsWith('-ear')) earRegions.set(region.name, region);
+      for (const index of region.vertices) {
+        const weight = regionStretchWeight(region, part.neutral, index);
+        part.vertices.push({ index, weights: [{ anchor: region.anchor, weight }] });
+      }
+    }
   });
+
+  for (const { part, region } of followers) {
+    const ear = earRegions.get(region.name);
+    ear.anchor.parts.add(part);
+    const weight = regionStretchWeight(ear, region.center, 0);
+    for (const index of region.vertices) {
+      part.vertices.push({ index, weights: [{ anchor: ear.anchor, weight }] });
+    }
+  }
+
+  const skinParts = faceMeshes.filter(part => part.regions.some(region => region.name === 'skin'));
+  const skinMeshes = skinParts.map(part => part.mesh);
+  const origin = new THREE.Vector3();
+  const forwardRay = new THREE.Vector3(0, 0, -1);
+  for (const [x, y] of narbyGrabPoints) {
+    origin.set(x * size.x / 2, y * size.y / 2, size.z);
+    faceRay.set(origin, forwardRay);
+    const hit = faceRay.intersectObjects(skinMeshes, false)
+      .find(candidate => skinParts.find(part => part.mesh === candidate.object)
+        .regions[candidate.face.a].name === 'skin');
+    if (hit) {
+      const anchor = { point: hit.point.clone(), offset: new THREE.Vector3(), parts: new Set() };
+      skinAnchors.push(anchor);
+      faceAnchors.push(anchor);
+    }
+  }
+
+  const influenceRadius = size.y * 0.19;
+  maxFacePull = size.y * 0.25;
+  for (const part of skinParts) {
+    for (let index = 0; index < part.position.count; index++) {
+      if (part.regions[index].name !== 'skin') continue;
+      faceVertex.fromBufferAttribute(part.position, index).applyMatrix4(part.mesh.matrixWorld);
+      const weights = [];
+      for (const anchor of skinAnchors) {
+        const fraction = 1 - faceVertex.distanceTo(anchor.point) / influenceRadius;
+        if (fraction > 0) {
+          weights.push({ anchor, weight: fraction * fraction * (3 - 2 * fraction) });
+          anchor.parts.add(part);
+        }
+      }
+      if (weights.length) part.vertices.push({ index, weights });
+    }
+  }
+}
+
+function regionStretchWeight(region, positions, index) {
+  if (region.name === 'hat') {
+    return THREE.MathUtils.smoothstep(positions[index * 3 + 1], 0.53, 2.69);
+  }
+  if (region.axis === undefined) return 1;
+  const min = region.min[region.axis];
+  const max = region.max[region.axis];
+  if (max === min) return 1;
+  const value = positions[index * 3 + region.axis];
+  const fraction = THREE.MathUtils.clamp((value - min) / (max - min), 0, 1);
+  const t = region.reverse ? 1 - fraction : fraction;
+  return t * t * (3 - 2 * t);
 }
 
 function setFaceRay(clientX, clientY) {
@@ -561,39 +665,40 @@ function updateFaceGeometry(part, restoreNormals = false) {
 
 function startFaceGrab(event) {
   if (event.button !== 0 || resetInProgress || faceGrab) return;
-  maybeStartAudio();
-  if (!model) return;
+  if (!faceStretchUnlocked) {
+    maybeStartAudio();
+    return;
+  }
+  if (!model || !faceAnchors.length) return;
   scene.updateMatrixWorld(true);
   setFaceRay(event.clientX, event.clientY);
   const hit = faceRay.intersectObjects(faceMeshes.map(part => part.mesh), false)[0];
   if (!hit) return;
+  const region = faceMeshes.find(part => part.mesh === hit.object).regions[hit.face.a];
+  if (region.follower) return;
 
-  const radius = faceHeight * model.scale.x * 0.19;
-  const affected = [];
-  for (const part of faceMeshes) {
-    const vertices = [];
-    for (let index = 0; index < part.position.count; index++) {
-      faceVertex.fromBufferAttribute(part.position, index).applyMatrix4(part.mesh.matrixWorld);
-      const fraction = 1 - faceVertex.distanceTo(hit.point) / radius;
-      if (fraction > 0) vertices.push({ index, weight: fraction * fraction * (3 - 2 * fraction) });
+  const inverse = model.matrixWorld.clone().invert();
+  const grabOrigin = hit.point.clone().applyMatrix4(inverse);
+  let nearest = region.anchor;
+  let nearestDistance = Infinity;
+  if (region.name === 'skin') {
+    for (const anchor of skinAnchors) {
+      const distance = faceVertex.copy(anchor.point).add(anchor.offset).distanceToSquared(grabOrigin);
+      if (distance < nearestDistance) {
+        nearest = anchor;
+        nearestDistance = distance;
+      }
     }
-    if (!vertices.length) continue;
-    const inverse = part.mesh.matrixWorld.clone().invert();
-    affected.push({
-      part, vertices,
-      start: part.position.array.slice(),
-      inverse,
-      origin: hit.point.clone().applyMatrix4(inverse)
-    });
   }
-  if (!affected.length) return;
+  if (!nearest) return;
 
   faceGrab = {
     pointerId: event.pointerId,
-    point: hit.point.clone(),
     plane: new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(faceNormal), hit.point),
-    maxPull: radius * 1.35,
-    affected,
+    inverse,
+    grabOrigin,
+    anchor: nearest,
+    startOffset: nearest.offset.clone(),
     pending: null
   };
   controls.enabled = false;
@@ -603,27 +708,31 @@ function startFaceGrab(event) {
 
 function applyFaceGrab() {
   if (!faceGrab?.pending) return;
-  const { pending, plane, point, maxPull, affected } = faceGrab;
+  const { pending, plane, inverse, grabOrigin, anchor, startOffset } = faceGrab;
   faceGrab.pending = null;
   setFaceRay(pending.x, pending.y);
   if (!faceRay.ray.intersectPlane(plane, faceHit)) return;
-  faceHit.sub(point).clampLength(0, maxPull).add(point);
-  for (const { part, vertices, start, inverse, origin } of affected) {
-    faceDelta.copy(faceHit).applyMatrix4(inverse).sub(origin);
-    for (const { index, weight } of vertices) {
+  faceDelta.copy(faceHit).applyMatrix4(inverse).sub(grabOrigin).add(startOffset).clampLength(0, maxFacePull);
+  if (faceDelta.equals(anchor.offset)) return;
+  anchor.offset.copy(faceDelta);
+
+  for (const part of anchor.parts) {
+    for (const { index, weights } of part.vertices) {
+      faceDelta.set(0, 0, 0);
+      for (const { anchor: point, weight } of weights) faceDelta.addScaledVector(point.offset, weight);
+      faceDelta.clampLength(0, maxFacePull).applyMatrix3(part.inverseLinear);
       const i = index * 3;
       part.position.setXYZ(
         index,
-        start[i] + faceDelta.x * weight,
-        start[i + 1] + faceDelta.y * weight,
-        start[i + 2] + faceDelta.z * weight
+        part.neutral[i] + faceDelta.x,
+        part.neutral[i + 1] + faceDelta.y,
+        part.neutral[i + 2] + faceDelta.z
       );
     }
     part.changed = true;
     updateFaceGeometry(part);
   }
 }
-
 function finishFaceGrab(pointerId) {
   if (faceGrab?.pointerId !== pointerId) return;
   applyFaceGrab();
@@ -633,7 +742,7 @@ function finishFaceGrab(pointerId) {
 }
 
 function resetFacePose(parts, progress) {
-  const remaining = progress === 1 ? 0 : Math.exp(-7 * progress) * Math.cos(10 * progress);
+  const remaining = progress === 1 ? 0 : Math.exp(-3.5 * progress) * Math.cos(16 * progress);
   for (const { part, start } of parts) {
     const positions = part.position.array;
     for (let i = 0; i < positions.length; i++) {
@@ -679,6 +788,7 @@ shuffleArray(tracks);  // ← randomize on every page load
 
 let currentTrack = 0;
 const audio = new Audio(tracks[currentTrack]);
+audio.addEventListener('playing', () => { faceStretchUnlocked = true; }, { once: true });
 audio.loop = false;
 audio.preload = 'auto';
 let userHasPressedPlay = false;
