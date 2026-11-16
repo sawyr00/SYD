@@ -80,6 +80,7 @@ document.body.appendChild(renderer.domElement);
 
 // Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableRotate = false;
 controls.enableDamping   = true;
 controls.dampingFactor   = 0.05;
 
@@ -193,32 +194,7 @@ let defaultCameraZ = 5;
 let initialModelScale = 0.6;
 
 
-// ─── Arcball rotation state & helper ───
-const raycaster = new THREE.Raycaster();
-const mouse     = new THREE.Vector2();
-let   isHeld    = false;
-let   prevArcballVec = new THREE.Vector3();
-let   baseModelQuat  = new THREE.Quaternion();
-
-// ─── Quaternion‐based momentum for greased‑bearing spin ───
-let   momentumQuat   = new THREE.Quaternion();  // stores last drag‑delta quaternion
-const quatFriction   = 0.02;                     // how fast momentum decays
-
-
-
-/**
- * Map screen coords → unit-sphere vector for arcball
- */
-function getArcballVector(clientX, clientY) {
-  const x = (clientX / window.innerWidth)  * 2 - 1;
-  const y = 1 - (clientY / window.innerHeight) * 2;
-  const len2 = x*x + y*y;
-  const v = new THREE.Vector3(x, y, 0);
-  v.z = len2 <= 1 ? Math.sqrt(1 - len2) : 0;
-  return v.normalize();
-}
-
-
+const turnVelocity = new THREE.Vector2();
 /**
  * Change all DirectionalLights in the scene to the given hex color.
  */
@@ -373,7 +349,7 @@ let resetInProgress = false;
 function smoothResetCamera() {
   if (resetInProgress || !model) return;
   resetInProgress = true;
-  momentumQuat.identity();
+  turnVelocity.set(0, 0);
   controls.enabled = false;
   const startPos = camera.position.clone();
   const startTarget = controls.target.clone();
@@ -410,6 +386,34 @@ function smoothResetCamera() {
 window.addEventListener('keydown', e => {
   if (['c', 'r'].includes(e.key.toLowerCase())) smoothResetCamera();
 });
+
+// Archived drag-to-spin controls (inactive)
+/*
+// ─── Arcball rotation state & helper ───
+const raycaster = new THREE.Raycaster();
+const mouse     = new THREE.Vector2();
+let   isHeld    = false;
+let   prevArcballVec = new THREE.Vector3();
+let   baseModelQuat  = new THREE.Quaternion();
+
+// ─── Quaternion‐based momentum for greased‑bearing spin ───
+let   momentumQuat   = new THREE.Quaternion();  // stores last drag‑delta quaternion
+const quatFriction   = 0.02;                     // how fast momentum decays
+
+
+
+/ **
+ * Map screen coords → unit-sphere vector for arcball
+ * /
+function getArcballVector(clientX, clientY) {
+  const x = (clientX / window.innerWidth)  * 2 - 1;
+  const y = 1 - (clientY / window.innerHeight) * 2;
+  const len2 = x*x + y*y;
+  const v = new THREE.Vector3(x, y, 0);
+  v.z = len2 <= 1 ? Math.sqrt(1 - len2) : 0;
+  return v.normalize();
+}
+
 
 // Drag inertia
 let isDragging = false;
@@ -487,6 +491,17 @@ renderer.domElement.addEventListener('mouseup', () => {
 });
 
 
+
+// if not holding the model, layer on the last-drag momentum and decay it
+if (!isHeld && !resetInProgress) {
+  model.quaternion.multiply(momentumQuat);
+  momentumQuat.slerp(new THREE.Quaternion(), quatFriction);
+}
+*/
+
+renderer.domElement.addEventListener('pointerdown', event => {
+  if (event.button === 0 && !resetInProgress) maybeStartAudio();
+});
 
 // Audio setup
 const tracks = [
@@ -746,9 +761,85 @@ function animateBBButton() {
 
 
 
+const turnStick = document.createElement('button');
+turnStick.type = 'button';
+turnStick.className = 'head-turn-stick';
+turnStick.setAttribute('aria-label', 'Rotate Narby. Drag the joystick or hold arrow keys.');
+const turnThumb = document.createElement('span');
+turnThumb.setAttribute('aria-hidden', 'true');
+turnStick.appendChild(turnThumb);
+document.body.appendChild(turnStick);
+
+const stickTravel = 21;
+const stickInput = new THREE.Vector2();
+const turnTarget = new THREE.Vector2();
+const turnKeys = new Set();
+const arrowKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+let stickPointer = null;
+
+function setStick(x, y) {
+  stickInput.set(x, y).clampLength(0, 1);
+  turnThumb.style.transform = `translate(${stickInput.x * stickTravel}px, ${stickInput.y * stickTravel}px)`;
+}
+
+function moveStick(event) {
+  if (event.pointerId !== stickPointer) return;
+  const bounds = turnStick.getBoundingClientRect();
+  setStick(
+    (event.clientX - bounds.left - bounds.width / 2) / stickTravel,
+    (event.clientY - bounds.top - bounds.height / 2) / stickTravel
+  );
+}
+
+function releaseStick() {
+  stickPointer = null;
+  turnKeys.clear();
+  setStick(0, 0);
+}
+
+turnStick.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || stickPointer !== null) return;
+  stickPointer = event.pointerId;
+  turnStick.setPointerCapture(stickPointer);
+  moveStick(event);
+});
+turnStick.addEventListener('pointermove', moveStick);
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  turnStick.addEventListener(type, event => {
+    if (event.pointerId === stickPointer) releaseStick();
+  });
+}
+for (const type of ['keydown', 'keyup']) {
+  turnStick.addEventListener(type, event => {
+    if (!arrowKeys.includes(event.key) || stickPointer !== null) return;
+    event.preventDefault();
+    if (type === 'keydown') turnKeys.add(event.key);
+    else turnKeys.delete(event.key);
+    setStick(
+      Number(turnKeys.has('ArrowRight')) - Number(turnKeys.has('ArrowLeft')),
+      Number(turnKeys.has('ArrowDown')) - Number(turnKeys.has('ArrowUp'))
+    );
+  });
+}
+turnStick.addEventListener('blur', releaseStick);
+window.addEventListener('blur', releaseStick);
+const turnAxes = new THREE.Euler(0, 0, 0, 'YXZ');
+const turnDelta = new THREE.Quaternion();
+function updateHeadTurn(frameSeconds) {
+  if (resetInProgress) return;
+  turnTarget.copy(stickInput).multiplyScalar(1.55);
+  turnVelocity.lerp(turnTarget, 1 - Math.exp(-frameSeconds / 0.12));
+  if (turnVelocity.lengthSq() < 0.000025) return;
+  turnAxes.set(turnVelocity.y * frameSeconds, turnVelocity.x * frameSeconds, 0);
+  model.quaternion.premultiply(turnDelta.setFromEuler(turnAxes));
+}
+
 // Main loop
+let lastFrameTime = performance.now() * 0.001;
 function animate() {
-  const tNow = performance.now() * 0.001; // seconds
+  const tNow = performance.now() * 0.001;
+  const frameSeconds = Math.min(tNow - lastFrameTime, 0.05);
+  lastFrameTime = tNow;
 
 
 
@@ -814,11 +905,7 @@ if (rainMesh) {
       0.035 * Math.sin(tNow * 1.13)
     );
 
-    // if not holding the model, layer on the last-drag momentum and decay it
-    if (!isHeld && !resetInProgress) {
-      model.quaternion.multiply(momentumQuat);
-      momentumQuat.slerp(new THREE.Quaternion(), quatFriction);
-    }
+    updateHeadTurn(frameSeconds);
   }
 
   // render & controls

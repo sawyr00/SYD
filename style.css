@@ -13,6 +13,37 @@ canvas {
   display: block;
 }
 
+.head-turn-stick {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  border: 1px solid #ff4d0c;
+  border-radius: 50%;
+  background: #151515;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.head-turn-stick:active {
+  cursor: grabbing;
+}
+
+.head-turn-stick span {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ff4d0c;
+  pointer-events: none;
+}
+
 .icon-button-shadow {
   position: fixed;
   z-index: 9;
