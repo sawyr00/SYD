@@ -544,8 +544,9 @@ titleBackdrop.setAttribute('aria-hidden', 'true');
 document.body.appendChild(titleBackdrop);
 
 const nowPlaying = document.createElement('div');
+nowPlaying.className = 'track-title-strip';
 Object.assign(nowPlaying.style, {
-  position: 'fixed', top: '20px', left: '50%',
+  position: 'fixed', top: 'var(--track-title-top, 20px)', left: '50%',
   transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
   display: 'flex', justifyContent: 'center', alignItems: 'center'
 });
@@ -555,7 +556,7 @@ Object.assign(nowText.style, {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr)',
   alignItems: 'center',
-  gap: '40px',
+  gap: 'var(--track-title-gap, 40px)',
   width: '100%',
   minWidth: '0'
 });
@@ -579,8 +580,10 @@ function updateNowPlaying() {
     Object.assign(title.style, {
       display: 'block',
       height: 'auto',
-      maxHeight: '26px',
-      maxWidth: offset === 0 ? 'max(0px, calc(80vw - 80px))' : '100%',
+      maxHeight: 'var(--track-title-max-height, 26px)',
+      maxWidth: offset === 0
+        ? 'max(0px, calc(80vw - 2 * var(--track-title-gap, 40px)))'
+        : '100%',
       justifySelf: ['end', 'center', 'start'][offset + 1],
       WebkitMaskImage: fade,
       maskImage: fade

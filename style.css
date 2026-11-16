@@ -66,14 +66,23 @@ canvas {
 /* Mobile layout */
 @media (max-width: 600px), (max-width: 950px) and (pointer: coarse) {
   body {
-    background-size: 257px 257px;
+    background-size: 286px 286px;
+    background-position: -8px 0;
+    --track-title-band-height: 54px;
     --player-top: clamp(68px, 25vh, calc(100vh - 222px));
     --player-step: 43px;
   }
 
   .track-title-backdrop {
     height: 66px;
-    background: linear-gradient(to bottom, black 54px, transparent);
+    background: linear-gradient(to bottom, black var(--track-title-band-height), transparent);
+  }
+
+  .track-title-strip {
+    --track-title-top: 0px;
+    height: var(--track-title-band-height);
+    --track-title-max-height: 28px;
+    --track-title-gap: 36px;
   }
 
   [data-icon] {
