@@ -354,6 +354,7 @@ function smoothResetCamera() {
   const faceReset = faceMeshes
     .filter(part => part.changed)
     .map(part => ({ part, start: part.position.array.slice() }));
+  const pupilReset = facePupils.map(pupil => ({ pupil, start: pupil.anchor.offset.clone() }));
   for (const anchor of faceAnchors) anchor.offset.set(0, 0, 0);
   resetInProgress = true;
   turnVelocity.set(0, 0);
@@ -365,9 +366,11 @@ function smoothResetCamera() {
   const frontRotation = new THREE.Quaternion();
   const center = new THREE.Vector3();
   const startTime = performance.now();
-  const duration = 1000;
+  const centerDuration = 1000 / 3;
+  const bounceDuration = faceReset.length ? 1350 : 0;
   function frame() {
-    const t = Math.min((performance.now() - startTime) / duration, 1);
+    const elapsed = performance.now() - startTime;
+    const t = Math.min(elapsed / centerDuration, 1);
     const eased = t * t * (3 - 2 * t);
     camera.position.lerpVectors(
       startPos,
@@ -382,12 +385,24 @@ function smoothResetCamera() {
     model.quaternion.slerpQuaternions(startRotation, frontRotation, eased);
     controls.target.lerpVectors(startTarget, center, eased);
     if (faceReset.length) {
-      const faceProgress = Math.min(t * 1.5, 1);
-      resetFacePose(faceReset, faceProgress);
-      if (faceProgress === 1) faceReset.length = 0;
+      const seconds = elapsed / 1000;
+      const remaining = Math.exp(-2.6 * seconds) * Math.cos(24 * seconds)
+        * (1 - THREE.MathUtils.smoothstep(elapsed, bounceDuration - 150, bounceDuration));
+      const finished = elapsed >= bounceDuration;
+      resetFacePose(faceReset, remaining, finished);
+      if (!finished) {
+        for (const { pupil, start } of pupilReset) {
+          pupil.anchor.offset.copy(start).multiplyScalar(remaining);
+          positionPupil(pupil);
+          updateFaceGeometry(pupil.part);
+        }
+      } else {
+        for (const { pupil } of pupilReset) pupil.anchor.offset.set(0, 0, 0);
+        faceReset.length = 0;
+      }
     }
     controls.update();
-    if (t < 1) requestAnimationFrame(frame);
+    if (t < 1 || faceReset.length) requestAnimationFrame(frame);
     else {
       resetInProgress = false;
       controls.enabled = true;
@@ -513,6 +528,7 @@ if (!isHeld && !resetInProgress) {
 
 // Drag to stretch the face. Pointer events share the same path for mouse and touch.
 const faceMeshes = [];
+const facePupils = [];
 const faceAnchors = [];
 const skinAnchors = [];
 let faceStretchUnlocked = false;
@@ -568,7 +584,7 @@ function prepareFaceStretch(head, size) {
     faceMeshes.push(part);
     for (const region of identifyNarbyRegions(position.array, mesh.geometry.index.array)) {
       for (const index of region.vertices) part.regions[index] = region;
-      if (region.name === 'skin') continue;
+      if (region.name === 'skin' || region.name.endsWith('-center-tooth')) continue;
       if (region.follower) {
         followers.push({ part, region });
         continue;
@@ -579,8 +595,9 @@ function prepareFaceStretch(head, size) {
       region.anchor = regionAnchors.get(region.name);
       region.anchor.parts.add(part);
       if (region.name.endsWith('-ear')) earRegions.set(region.name, region);
-      if (region.name.endsWith('-eye-white')) eyeRegions.set(region.name, region);
-      const pointCount = region.name.endsWith('-ear') ? 9 : region.name === 'nose' ? 7 : 0;
+      if (region.name.endsWith('-eye-white')) eyeRegions.set(region.name, { part, region });
+      const pointCount = region.name.endsWith('-ear') ? 9 : region.name === 'nose' ? 7
+        : region.name.endsWith('-eye-white') ? 8 : 0;
       if (pointCount) {
         region.points = [];
         const candidates = region.vertices.map(index => new THREE.Vector3()
@@ -588,7 +605,10 @@ function prepareFaceStretch(head, size) {
         distributeFacePoints(region.points, candidates, pointCount, makeAnchor);
         for (const point of region.points) point.parts.add(part);
       }
-      if (region.name.endsWith('-pupil')) pupils.push({ part, region });
+      if (region.name.endsWith('-pupil')) {
+        pupils.push({ part, region, anchor: region.anchor });
+        continue;
+      }
       for (const index of region.vertices) {
         const weight = regionStretchWeight(region, part.neutral, index);
         let weights = [{ anchor: region.anchor, weight }];
@@ -600,11 +620,11 @@ function prepareFaceStretch(head, size) {
           const bill = hatBillWeight(part.neutral, index);
           hatBill.parts.add(part);
           region.bill = hatBill;
-          weights = [{ anchor: region.anchor, weight: weight * (1 - bill) }, { anchor: hatBill, weight: weight * bill }];
+          weights = bill >= 0.5
+            ? [{ anchor: hatBill, weight: weight * THREE.MathUtils.smoothstep(bill, 0.5, 0.85) }]
+            : [{ anchor: region.anchor, weight: weight * (1 - THREE.MathUtils.smoothstep(bill, 0.15, 0.5)) }];
         }
-        const vertex = { index, weights };
-        part.vertices.push(vertex);
-        if (region.name.endsWith('-pupil')) (region.influences ??= []).push(vertex);
+        part.vertices.push({ index, weights });
       }
     }
   });
@@ -619,15 +639,28 @@ function prepareFaceStretch(head, size) {
       part.vertices.push({ index, weights });
     }
   }
-  for (const { part, region } of pupils) {
-    const eye = eyeRegions.get(region.name.replace('pupil', 'eye-white'));
+  for (const pupil of pupils) {
+    const eye = eyeRegions.get(pupil.region.name.replace('pupil', 'eye-white'));
     if (!eye) continue;
-    const pupilBase = [region.center[0], region.center[1], region.min[2]];
-    const weight = regionStretchWeight(eye, pupilBase, 0);
-    eye.anchor.parts.add(part);
-    for (const vertex of region.influences) {
-      vertex.weights.push({ anchor: eye.anchor, weight });
+    const indices = eye.part.mesh.geometry.index.array;
+    const front = THREE.MathUtils.lerp(eye.region.min[2], eye.region.max[2], 0.48);
+    pupil.eye = eye.part;
+    pupil.surface = [];
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i], b = indices[i + 1], c = indices[i + 2];
+      if ([a, b, c].every(index => eye.part.regions[index] === eye.region)
+          && (eye.part.neutral[a * 3 + 2] + eye.part.neutral[b * 3 + 2] + eye.part.neutral[c * 3 + 2]) / 3 >= front) {
+        pupil.surface.push(a, b, c);
+      }
     }
+    if (!pupil.surface.length) continue;
+    const { center, min } = pupil.region;
+    const base = new THREE.Vector3(center[0], center[1], min[2]);
+    const attachment = {};
+    pupil.origin = projectPupil(pupil, base, new THREE.Vector3(), attachment);
+    pupil.attachIndices = attachment.indices;
+    pupil.attachWeights = attachment.weights;
+    facePupils.push(pupil);
   }
 
   const skinParts = faceMeshes.filter(part => part.regions.some(region => region.name === 'skin'));
@@ -662,6 +695,48 @@ function prepareFaceStretch(head, size) {
       for (const { anchor } of weights) anchor.parts.add(part);
       if (weights.length) part.vertices.push({ index, weights });
     }
+  }
+}
+
+const pupilTriangle = new THREE.Triangle();
+const pupilCandidate = new THREE.Vector3();
+const pupilTarget = new THREE.Vector3();
+const pupilDisplacement = new THREE.Vector3();
+
+function projectPupil(pupil, target, result, attachment) {
+  let closest = Infinity;
+  const surface = pupil.surface;
+  const position = pupil.eye.position;
+  for (let i = 0; i < surface.length; i += 3) {
+    pupilTriangle.a.fromBufferAttribute(position, surface[i]);
+    pupilTriangle.b.fromBufferAttribute(position, surface[i + 1]);
+    pupilTriangle.c.fromBufferAttribute(position, surface[i + 2]);
+    pupilTriangle.closestPointToPoint(target, pupilCandidate);
+    const distance = pupilCandidate.distanceToSquared(target);
+    if (distance >= closest) continue;
+    closest = distance;
+    result.copy(pupilCandidate);
+    if (attachment) {
+      attachment.indices = surface.slice(i, i + 3);
+      attachment.weights = pupilTriangle.getBarycoord(pupilCandidate, new THREE.Vector3()).toArray();
+    }
+  }
+  return result;
+}
+
+function positionPupil(pupil) {
+  pupilTarget.set(0, 0, 0);
+  for (let i = 0; i < 3; i++) {
+    faceVertex.fromBufferAttribute(pupil.eye.position, pupil.attachIndices[i]);
+    pupilTarget.addScaledVector(faceVertex, pupil.attachWeights[i]);
+  }
+  pupilTarget.add(faceDelta.copy(pupil.anchor.offset).applyMatrix3(pupil.part.inverseLinear));
+  projectPupil(pupil, pupilTarget, pupilDisplacement).sub(pupil.origin);
+  const { position, neutral } = pupil.part;
+  for (const index of pupil.region.vertices) {
+    const i = index * 3;
+    position.setXYZ(index, neutral[i] + pupilDisplacement.x,
+      neutral[i + 1] + pupilDisplacement.y, neutral[i + 2] + pupilDisplacement.z);
   }
 }
 
@@ -769,6 +844,7 @@ function startFaceGrab(event) {
     - faceVertex.fromBufferAttribute(part.position, b).distanceToSquared(localHit));
   const region = part.regions[hitVertices[0]];
   if (region.follower) return;
+  if (region.name.endsWith('-center-tooth')) return;
 
   const inverse = model.matrixWorld.clone().invert();
   const grabOrigin = hit.point.clone().applyMatrix4(inverse);
@@ -825,8 +901,16 @@ function applyFaceGrab() {
       );
     }
     part.changed = true;
-    updateFaceGeometry(part);
   }
+  const changedParts = new Set(anchor.parts);
+  for (const pupil of facePupils) {
+    if (anchor === pupil.anchor || anchor.parts.has(pupil.eye)) {
+      positionPupil(pupil);
+      pupil.part.changed = true;
+      changedParts.add(pupil.part);
+    }
+  }
+  for (const part of changedParts) updateFaceGeometry(part);
 }
 function finishFaceGrab(pointerId) {
   if (faceGrab?.pointerId !== pointerId) return;
@@ -836,15 +920,14 @@ function finishFaceGrab(pointerId) {
   controls.enabled = !resetInProgress;
 }
 
-function resetFacePose(parts, progress) {
-  const remaining = progress === 1 ? 0 : Math.exp(-3.5 * progress) * Math.cos(16 * progress);
+function resetFacePose(parts, remaining, finished) {
   for (const { part, start } of parts) {
     const positions = part.position.array;
     for (let i = 0; i < positions.length; i++) {
       positions[i] = part.neutral[i] + (start[i] - part.neutral[i]) * remaining;
     }
-    part.changed = progress < 1;
-    updateFaceGeometry(part, progress === 1);
+    part.changed = !finished;
+    updateFaceGeometry(part, finished);
   }
 }
 
