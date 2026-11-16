@@ -4,9 +4,9 @@ body {
   overflow: hidden;
   background-color: black;
   background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
-                    url("images/DummyBox_wallpaper.png");
+                    url("images/DummyBox_wallpaper-single.png");
   background-repeat: repeat;
-  background-size: 800px 800px;
+  background-size: 400px 400px;
 }
 
 canvas {
@@ -66,7 +66,7 @@ canvas {
 /* Mobile layout */
 @media (max-width: 600px), (max-width: 950px) and (pointer: coarse) {
   body {
-    background-size: 286px 286px;
+    background-size: 143px 143px;
     background-position: -28px 0;
     --track-title-band-height: 54px;
     --player-top: clamp(68px, 25vh, calc(100vh - 222px));
