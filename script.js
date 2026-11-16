@@ -354,6 +354,7 @@ function smoothResetCamera() {
   const faceReset = faceMeshes
     .filter(part => part.changed)
     .map(part => ({ part, start: part.position.array.slice() }));
+  if (faceReset.length) playSoundEffect(bounceBackSound);
   const pupilReset = facePupils.map(pupil => ({ pupil, start: pupil.anchor.offset.clone() }));
   for (const anchor of faceAnchors) anchor.offset.set(0, 0, 0);
   resetInProgress = true;
@@ -563,7 +564,6 @@ function prepareFaceStretch(head, size) {
     faceAnchors.push(anchor);
     return anchor;
   };
-  const hatBill = makeAnchor();
   head.traverse(mesh => {
     if (!mesh.isMesh) return;
     mesh.geometry = mesh.geometry.clone();
@@ -615,14 +615,6 @@ function prepareFaceStretch(head, size) {
         if (region.points) {
           faceVertex.fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld);
           weights = localizedWeights(region.points, faceVertex, weight, size.y * 0.17);
-        }
-        if (region.name === 'hat') {
-          const bill = hatBillWeight(part.neutral, index);
-          hatBill.parts.add(part);
-          region.bill = hatBill;
-          weights = bill >= 0.5
-            ? [{ anchor: hatBill, weight: weight * THREE.MathUtils.smoothstep(bill, 0.5, 0.85) }]
-            : [{ anchor: region.anchor, weight: weight * (1 - THREE.MathUtils.smoothstep(bill, 0.15, 0.5)) }];
         }
         part.vertices.push({ index, weights });
       }
@@ -787,7 +779,10 @@ function regionStretchWeight(region, positions, index) {
   const i = index * 3;
   if (region.name === 'hat') {
     const distance = Math.hypot(positions[i], positions[i + 1] - 0.53, positions[i + 2] + 0.75);
-    return THREE.MathUtils.smoothstep(distance, 0.18, 1.65);
+    const capWeight = THREE.MathUtils.smoothstep(distance, 0.18, 1.65);
+    const atBill = THREE.MathUtils.smoothstep(hatBillWeight(positions, index), 0.3, 0.5);
+    // Every vertex on the bill, including the stitching, follows the same offset.
+    return THREE.MathUtils.lerp(capWeight, 0.5, atBill);
   }
   if (region.axis === undefined) return 1;
   const min = region.min[region.axis];
@@ -845,11 +840,11 @@ function startFaceGrab(event) {
   const region = part.regions[hitVertices[0]];
   if (region.follower) return;
   if (region.name.endsWith('-center-tooth')) return;
+  if (region.name === 'hat' && hatBillWeight(part.neutral, hitVertices[0]) >= 0.5) return;
 
   const inverse = model.matrixWorld.clone().invert();
   const grabOrigin = hit.point.clone().applyMatrix4(inverse);
-  let nearest = region.bill && hatBillWeight(part.neutral, hitVertices[0]) >= 0.5
-    ? region.bill : region.anchor;
+  let nearest = region.anchor;
   let nearestDistance = Infinity;
   const points = region.name === 'skin' ? skinAnchors : region.points;
   if (points) {
@@ -966,6 +961,16 @@ shuffleArray(tracks);  // ← randomize on every page load
 
 let currentTrack = 0;
 const audio = new Audio(tracks[currentTrack]);
+const buttonPressSound = new Audio('audio/_sound%20fx/button%20press%203.mp3');
+const bounceBackSound = new Audio('audio/_sound%20fx/bounceback%20v1.wav');
+buttonPressSound.preload = 'auto';
+bounceBackSound.preload = 'auto';
+
+function playSoundEffect(sound) {
+  sound.currentTime = 0;
+  sound.play().catch(error => console.warn('Could not play sound effect:', error));
+}
+
 audio.addEventListener('playing', () => { faceStretchUnlocked = true; }, { once: true });
 audio.loop = false;
 audio.preload = 'auto';
@@ -1070,6 +1075,12 @@ function toggleMute(btn) {
 // Button factory
 function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOffset, toggle = false }) {
   const btn = document.createElement('button');
+  btn.addEventListener('pointerdown', event => {
+    if (event.button === 0) playSoundEffect(buttonPressSound);
+  });
+  btn.addEventListener('click', event => {
+    if (event.detail === 0) playSoundEffect(buttonPressSound);
+  });
   btn.id = id;
   btn.dataset.icon = id;
 
