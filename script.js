@@ -298,6 +298,7 @@ loader.load('models/Narby_Head-Web.glb', gltf => {
   head.position.sub(box.getCenter(new THREE.Vector3()));
   model = new THREE.Group();
   model.add(head);
+  prepareFaceStretch(head, size.y);
   model.traverse(c => {
     if (c.isMesh) {
       c.castShadow    = true;
@@ -348,6 +349,10 @@ window.addEventListener('resize', () => {
 let resetInProgress = false;
 function smoothResetCamera() {
   if (resetInProgress || !model) return;
+  if (faceGrab) finishFaceGrab(faceGrab.pointerId);
+  const faceReset = faceMeshes
+    .filter(part => part.changed)
+    .map(part => ({ part, start: part.position.array.slice() }));
   resetInProgress = true;
   turnVelocity.set(0, 0);
   controls.enabled = false;
@@ -374,6 +379,7 @@ function smoothResetCamera() {
     );
     model.quaternion.slerpQuaternions(startRotation, frontRotation, eased);
     controls.target.lerpVectors(startTarget, center, eased);
+    resetFacePose(faceReset, t);
     controls.update();
     if (t < 1) requestAnimationFrame(frame);
     else {
@@ -499,9 +505,154 @@ if (!isHeld && !resetInProgress) {
 }
 */
 
-renderer.domElement.addEventListener('pointerdown', event => {
-  if (event.button === 0 && !resetInProgress) maybeStartAudio();
+// Drag to stretch the face. Pointer events share the same path for mouse and touch.
+const faceMeshes = [];
+let faceHeight = 0;
+let faceGrab = null;
+const faceRay = new THREE.Raycaster();
+const facePointer = new THREE.Vector2();
+const faceVertex = new THREE.Vector3();
+const faceHit = new THREE.Vector3();
+const faceDelta = new THREE.Vector3();
+const faceNormal = new THREE.Vector3();
+
+function prepareFaceStretch(head, height) {
+  faceHeight = height;
+  head.traverse(mesh => {
+    if (!mesh.isMesh) return;
+    mesh.geometry = mesh.geometry.clone();
+    const position = mesh.geometry.getAttribute('position');
+    if (!position) return;
+    const normal = mesh.geometry.getAttribute('normal');
+    position.setUsage(THREE.DynamicDrawUsage);
+    faceMeshes.push({
+      mesh,
+      position,
+      neutral: position.array.slice(),
+      neutralNormals: normal?.array.slice(),
+      changed: false
+    });
+  });
+}
+
+function setFaceRay(clientX, clientY) {
+  const bounds = renderer.domElement.getBoundingClientRect();
+  facePointer.set(
+    (clientX - bounds.left) / bounds.width * 2 - 1,
+    1 - (clientY - bounds.top) / bounds.height * 2
+  );
+  camera.updateMatrixWorld();
+  faceRay.setFromCamera(facePointer, camera);
+}
+
+function updateFaceGeometry(part, restoreNormals = false) {
+  const geometry = part.mesh.geometry;
+  part.position.needsUpdate = true;
+  if (restoreNormals && part.neutralNormals) {
+    const normal = geometry.getAttribute('normal');
+    normal.array.set(part.neutralNormals);
+    normal.needsUpdate = true;
+  } else {
+    geometry.computeVertexNormals();
+  }
+  geometry.computeBoundingSphere();
+  if (geometry.boundingBox) geometry.computeBoundingBox();
+}
+
+function startFaceGrab(event) {
+  if (event.button !== 0 || resetInProgress || faceGrab) return;
+  maybeStartAudio();
+  if (!model) return;
+  scene.updateMatrixWorld(true);
+  setFaceRay(event.clientX, event.clientY);
+  const hit = faceRay.intersectObjects(faceMeshes.map(part => part.mesh), false)[0];
+  if (!hit) return;
+
+  const radius = faceHeight * model.scale.x * 0.19;
+  const affected = [];
+  for (const part of faceMeshes) {
+    const vertices = [];
+    for (let index = 0; index < part.position.count; index++) {
+      faceVertex.fromBufferAttribute(part.position, index).applyMatrix4(part.mesh.matrixWorld);
+      const fraction = 1 - faceVertex.distanceTo(hit.point) / radius;
+      if (fraction > 0) vertices.push({ index, weight: fraction * fraction * (3 - 2 * fraction) });
+    }
+    if (!vertices.length) continue;
+    const inverse = part.mesh.matrixWorld.clone().invert();
+    affected.push({
+      part, vertices,
+      start: part.position.array.slice(),
+      inverse,
+      origin: hit.point.clone().applyMatrix4(inverse)
+    });
+  }
+  if (!affected.length) return;
+
+  faceGrab = {
+    pointerId: event.pointerId,
+    point: hit.point.clone(),
+    plane: new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(faceNormal), hit.point),
+    maxPull: radius * 1.35,
+    affected,
+    pending: null
+  };
+  controls.enabled = false;
+  turnVelocity.set(0, 0);
+  renderer.domElement.setPointerCapture(event.pointerId);
+}
+
+function applyFaceGrab() {
+  if (!faceGrab?.pending) return;
+  const { pending, plane, point, maxPull, affected } = faceGrab;
+  faceGrab.pending = null;
+  setFaceRay(pending.x, pending.y);
+  if (!faceRay.ray.intersectPlane(plane, faceHit)) return;
+  faceHit.sub(point).clampLength(0, maxPull).add(point);
+  for (const { part, vertices, start, inverse, origin } of affected) {
+    faceDelta.copy(faceHit).applyMatrix4(inverse).sub(origin);
+    for (const { index, weight } of vertices) {
+      const i = index * 3;
+      part.position.setXYZ(
+        index,
+        start[i] + faceDelta.x * weight,
+        start[i + 1] + faceDelta.y * weight,
+        start[i + 2] + faceDelta.z * weight
+      );
+    }
+    part.changed = true;
+    updateFaceGeometry(part);
+  }
+}
+
+function finishFaceGrab(pointerId) {
+  if (faceGrab?.pointerId !== pointerId) return;
+  applyFaceGrab();
+  faceGrab = null;
+  if (renderer.domElement.hasPointerCapture(pointerId)) renderer.domElement.releasePointerCapture(pointerId);
+  controls.enabled = !resetInProgress;
+}
+
+function resetFacePose(parts, progress) {
+  const remaining = progress === 1 ? 0 : Math.exp(-7 * progress) * Math.cos(10 * progress);
+  for (const { part, start } of parts) {
+    const positions = part.position.array;
+    for (let i = 0; i < positions.length; i++) {
+      positions[i] = part.neutral[i] + (start[i] - part.neutral[i]) * remaining;
+    }
+    part.changed = progress < 1;
+    updateFaceGeometry(part, progress === 1);
+  }
+}
+
+renderer.domElement.addEventListener('pointerdown', startFaceGrab, { capture: true });
+renderer.domElement.addEventListener('pointermove', event => {
+  if (faceGrab?.pointerId === event.pointerId) {
+    faceGrab.pending = { x: event.clientX, y: event.clientY };
+  }
 });
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  renderer.domElement.addEventListener(type, event => finishFaceGrab(event.pointerId));
+}
 
 // Audio setup
 const tracks = [
@@ -833,7 +984,7 @@ window.addEventListener('blur', releaseStick);
 const turnAxes = new THREE.Euler(0, 0, 0, 'YXZ');
 const turnDelta = new THREE.Quaternion();
 function updateHeadTurn(frameSeconds) {
-  if (resetInProgress) return;
+  if (resetInProgress || faceGrab) return;
   turnTarget.copy(stickInput).multiplyScalar(1.55);
   turnVelocity.lerp(turnTarget, 1 - Math.exp(-frameSeconds / 0.12));
   if (turnVelocity.lengthSq() < 0.000025) return;
@@ -914,6 +1065,8 @@ if (rainMesh) {
 
     updateHeadTurn(frameSeconds);
   }
+
+  applyFaceGrab();
 
   // render & controls
   renderer.render(scene, camera);
