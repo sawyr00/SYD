@@ -66,24 +66,9 @@ canvas {
 /* Mobile layout */
 @media (max-width: 600px), (max-width: 950px) and (pointer: coarse) {
   body {
-    background-size: 180px 180px;
+    background-size: 257px 257px;
     --player-top: clamp(68px, 25vh, calc(100vh - 222px));
     --player-step: 43px;
-  }
-
-  .track-title-strip {
-    --title-top: 2px;
-    --title-width: calc(100% - 20px);
-  }
-
-  .track-title-row {
-    --title-columns: minmax(0, 1fr);
-    --current-title-height: 25px;
-    --current-title-width: 100%;
-  }
-
-  .track-title-row .track-title-neighbor {
-    display: none !important;
   }
 
   .track-title-backdrop {

@@ -544,18 +544,16 @@ titleBackdrop.setAttribute('aria-hidden', 'true');
 document.body.appendChild(titleBackdrop);
 
 const nowPlaying = document.createElement('div');
-nowPlaying.className = 'track-title-strip';
 Object.assign(nowPlaying.style, {
-  position: 'fixed', top: 'var(--title-top, 20px)', left: '50%',
-  transform: 'translateX(-50%)', width: 'var(--title-width, 80%)', overflow: 'hidden',
+  position: 'fixed', top: '20px', left: '50%',
+  transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
   display: 'flex', justifyContent: 'center', alignItems: 'center'
 });
 document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
-nowText.className = 'track-title-row';
 Object.assign(nowText.style, {
   display: 'grid',
-  gridTemplateColumns: 'var(--title-columns, minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr))',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '40px',
   width: '100%',
@@ -572,7 +570,6 @@ function updateNowPlaying() {
     const path = tracks[(currentTrack + offset + tracks.length) % tracks.length];
     const trackNumber = path.split('/').pop().slice(0, 2);
     const title = document.createElement('img');
-    title.className = offset === 0 ? 'track-title-current' : 'track-title-neighbor';
     const suffix = offset === 0 ? '-current' : '';
     title.src = `images/track-titles/${trackNumber}${suffix}.png`;
     title.alt = getBaseName(path);
@@ -582,8 +579,8 @@ function updateNowPlaying() {
     Object.assign(title.style, {
       display: 'block',
       height: 'auto',
-      maxHeight: offset === 0 ? 'var(--current-title-height, 26px)' : '26px',
-      maxWidth: offset === 0 ? 'var(--current-title-width, max(0px, calc(80vw - 80px)))' : '100%',
+      maxHeight: '26px',
+      maxWidth: offset === 0 ? 'max(0px, calc(80vw - 80px))' : '100%',
       justifySelf: ['end', 'center', 'start'][offset + 1],
       WebkitMaskImage: fade,
       maskImage: fade
