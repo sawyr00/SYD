@@ -13,6 +13,10 @@ canvas {
   display: block;
 }
 
+.track-title-row picture {
+  display: contents;
+}
+
 .head-turn-stick {
   position: fixed;
   left: 50%;
@@ -61,6 +65,62 @@ canvas {
   height: 72px;
   background: linear-gradient(to bottom, black 56px, transparent);
   pointer-events: none;
+}
+
+/* Mobile layout */
+@media (max-width: 600px), (max-width: 950px) and (pointer: coarse) {
+  body {
+    background-size: 180px 180px;
+    --player-top: clamp(68px, 25vh, calc(100vh - 222px));
+    --player-step: 43px;
+  }
+
+  .track-title-strip {
+    --title-top: 3px;
+    --title-width: calc(100% - 20px);
+  }
+
+  .track-title-row {
+    --title-columns: minmax(0, 1fr);
+    --current-title-height: 54px;
+    --current-title-width: min(100%, 420px);
+  }
+
+  .track-title-row .track-title-neighbor {
+    display: none !important;
+  }
+
+  .track-title-backdrop {
+    height: 66px;
+    background: linear-gradient(to bottom, black 54px, transparent);
+  }
+
+  [data-icon] {
+    --icon-size: 35px;
+    --icon-right: 14px;
+  }
+
+  [data-icon="playPauseBtn"] { --icon-top: var(--player-top); }
+  [data-icon="nextTrackBtn"] { --icon-top: calc(var(--player-top) + var(--player-step)); }
+  [data-icon="prevTrackBtn"] { --icon-top: calc(var(--player-top) + 2 * var(--player-step)); }
+  [data-icon="muteBtn"] { --icon-top: calc(var(--player-top) + 3 * var(--player-step)); }
+  [data-icon="recenterBtn"] {
+    --icon-top: max(75%, calc(var(--player-top) + 4 * var(--player-step)));
+  }
+  [data-icon="bbBtn"] {
+    --icon-top: 65px;
+    --icon-right: calc(50% - 17.5px);
+  }
+
+  .head-turn-stick {
+    width: 54px;
+    height: 54px;
+  }
+
+  .head-turn-stick span {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 .gui-button {

@@ -544,16 +544,18 @@ titleBackdrop.setAttribute('aria-hidden', 'true');
 document.body.appendChild(titleBackdrop);
 
 const nowPlaying = document.createElement('div');
+nowPlaying.className = 'track-title-strip';
 Object.assign(nowPlaying.style, {
-  position: 'fixed', top: '20px', left: '50%',
-  transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
+  position: 'fixed', top: 'var(--title-top, 20px)', left: '50%',
+  transform: 'translateX(-50%)', width: 'var(--title-width, 80%)', overflow: 'hidden',
   display: 'flex', justifyContent: 'center', alignItems: 'center'
 });
 document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
+nowText.className = 'track-title-row';
 Object.assign(nowText.style, {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr)',
+  gridTemplateColumns: 'var(--title-columns, minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr))',
   alignItems: 'center',
   gap: '40px',
   width: '100%',
@@ -570,6 +572,7 @@ function updateNowPlaying() {
     const path = tracks[(currentTrack + offset + tracks.length) % tracks.length];
     const trackNumber = path.split('/').pop().slice(0, 2);
     const title = document.createElement('img');
+    title.className = offset === 0 ? 'track-title-current' : 'track-title-neighbor';
     const suffix = offset === 0 ? '-current' : '';
     title.src = `images/track-titles/${trackNumber}${suffix}.png`;
     title.alt = getBaseName(path);
@@ -579,13 +582,19 @@ function updateNowPlaying() {
     Object.assign(title.style, {
       display: 'block',
       height: 'auto',
-      maxHeight: '26px',
-      maxWidth: offset === 0 ? 'max(0px, calc(80vw - 80px))' : '100%',
+      maxHeight: offset === 0 ? 'var(--current-title-height, 26px)' : '26px',
+      maxWidth: offset === 0 ? 'var(--current-title-width, max(0px, calc(80vw - 80px)))' : '100%',
       justifySelf: ['end', 'center', 'start'][offset + 1],
       WebkitMaskImage: fade,
       maskImage: fade
     });
-    return title;
+    if (offset !== 0) return title;
+    const picture = document.createElement('picture');
+    const mobile = document.createElement('source');
+    mobile.media = '(max-width: 600px), (max-width: 950px) and (pointer: coarse)';
+    mobile.srcset = `images/track-titles/${trackNumber}-mobile.png`;
+    picture.append(mobile, title);
+    return picture;
   });
   nowText.replaceChildren(...titles);
 }
@@ -629,6 +638,7 @@ function toggleMute(btn) {
 function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOffset, toggle = false }) {
   const btn = document.createElement('button');
   btn.id = id;
+  btn.dataset.icon = id;
 
   // ─── RESET ANY BACKGROUND ───
   btn.style.background      = 'none';               // remove any shorthand background
@@ -650,10 +660,10 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
     outline:   'none',
     cursor:    'pointer',
     position:  'fixed',
-    top:       topOffset,
-    right:     rightOffset,
-    width:     '50px',
-    height:    '50px',
+    top:       `var(--icon-top, ${topOffset})`,
+    right:     `var(--icon-right, ${rightOffset})`,
+    width:     'var(--icon-size, 50px)',
+    height:    'var(--icon-size, 50px)',
     zIndex:    '10',
     boxSizing: 'border-box'
   });
@@ -683,6 +693,7 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
 
   const shadow = document.createElement('div');
   shadow.className = 'icon-button-shadow';
+  shadow.dataset.icon = id;
   shadow.setAttribute('aria-hidden', 'true');
   Object.assign(shadow.style, {
     top: btn.style.top,
@@ -770,7 +781,7 @@ turnThumb.setAttribute('aria-hidden', 'true');
 turnStick.appendChild(turnThumb);
 document.body.appendChild(turnStick);
 
-const stickTravel = 21;
+const stickTravelRatio = 21 / 76;
 const stickInput = new THREE.Vector2();
 const turnTarget = new THREE.Vector2();
 const turnKeys = new Set();
@@ -779,12 +790,14 @@ let stickPointer = null;
 
 function setStick(x, y) {
   stickInput.set(x, y).clampLength(0, 1);
+  const stickTravel = turnStick.offsetWidth * stickTravelRatio;
   turnThumb.style.transform = `translate(${stickInput.x * stickTravel}px, ${stickInput.y * stickTravel}px)`;
 }
 
 function moveStick(event) {
   if (event.pointerId !== stickPointer) return;
   const bounds = turnStick.getBoundingClientRect();
+  const stickTravel = bounds.width * stickTravelRatio;
   setStick(
     (event.clientX - bounds.left - bounds.width / 2) / stickTravel,
     (event.clientY - bounds.top - bounds.height / 2) / stickTravel
