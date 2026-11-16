@@ -588,13 +588,7 @@ function updateNowPlaying() {
       WebkitMaskImage: fade,
       maskImage: fade
     });
-    if (offset !== 0) return title;
-    const picture = document.createElement('picture');
-    const mobile = document.createElement('source');
-    mobile.media = '(max-width: 600px), (max-width: 950px) and (pointer: coarse)';
-    mobile.srcset = `images/track-titles/${trackNumber}-mobile.png`;
-    picture.append(mobile, title);
-    return picture;
+    return title;
   });
   nowText.replaceChildren(...titles);
 }

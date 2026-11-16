@@ -13,10 +13,6 @@ canvas {
   display: block;
 }
 
-.track-title-row picture {
-  display: contents;
-}
-
 .head-turn-stick {
   position: fixed;
   left: 50%;
@@ -76,14 +72,14 @@ canvas {
   }
 
   .track-title-strip {
-    --title-top: 3px;
+    --title-top: 2px;
     --title-width: calc(100% - 20px);
   }
 
   .track-title-row {
     --title-columns: minmax(0, 1fr);
-    --current-title-height: 54px;
-    --current-title-width: min(100%, 420px);
+    --current-title-height: 25px;
+    --current-title-width: 100%;
   }
 
   .track-title-row .track-title-neighbor {
