@@ -178,8 +178,6 @@ function initDrops(srcMesh) {
 
 // Model & rotation state
 let model;
-// …up above, where you have let model; let squashGroup; …
-let squashUniforms = [];    // ← define this once for the entire script
 let squashGroup;  // group for rotating squash/stretch axes
 let hoverHeight = 0;
 
@@ -193,8 +191,6 @@ const maxSpinOffset = 0.1;
 const baseRotationZ = baseRotationVelocity.z;
 let defaultCameraZ = 5;
 let initialModelScale = 0.6;
-let bbBtnVisible = false;
-let spins = 0;
 
 
 // ─── Arcball rotation state & helper ───
@@ -208,9 +204,6 @@ let   baseModelQuat  = new THREE.Quaternion();
 let   momentumQuat   = new THREE.Quaternion();  // stores last drag‑delta quaternion
 const quatFriction   = 0.02;                     // how fast momentum decays
 
-let   bbSquashTime   = 0;       // will drive our erratic squash/stretch
-const bbSquashSpeed  = 0.1;     // how fast it oscillates
-const bbSquashAmount = 0.15;    // max deviation from 1× scale
 
 
 /**
@@ -237,19 +230,6 @@ function setDirectionalLightsColor(hexColor) {
   });
 }
 
-// BB‐button light tint animation state
-let dirInitialColor       = new THREE.Color(0xFFFFFF);
-const dirTargetColor      = new THREE.Color(0xFF0055);
-let colorTransitionActive = false;
-let colorTransitionStart  = 0;
-const colorTransitionDuration = 1000;  // ms
-
-// Throbbing pulse once tint completes
-let pulseActive      = false;
-let pulseStartTime   = 0;
-const pulseSpeed     = 0.005;   // tweak for faster/slower throb
-const pulseAmplitude = 0.3;     // swing magnitude
-const baseDirIntensity = 0.8;   // match your original directional-light intensity
 
 
 
@@ -362,13 +342,6 @@ loader.load('models/Narby_Head-Web.glb', gltf => {
   squashGroup.add(model);
   scene.add(squashGroup);
 
-  squashUniforms = [];
-  model.traverse(child => {
-    if (child.isMesh && child.material.uniforms?.cartoonSquash) {
-      squashUniforms.push(child.material.uniforms.cartoonSquash);
-    }
-  });
-
   const keyLight = new THREE.SpotLight(0xffffff, 0.1);
   keyLight.position.set(5,5,5);
   keyLight.target = model;
@@ -400,33 +373,42 @@ let resetInProgress = false;
 function smoothResetCamera() {
   if (resetInProgress || !model) return;
   resetInProgress = true;
+  momentumQuat.identity();
+  controls.enabled = false;
   const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
   const startScale = model.scale.clone();
+  const startRotation = model.quaternion.clone();
+  const frontRotation = new THREE.Quaternion();
+  const center = new THREE.Vector3();
   const startTime = performance.now();
   const duration = 1000;
   function frame() {
     const t = Math.min((performance.now() - startTime) / duration, 1);
+    const eased = t * t * (3 - 2 * t);
     camera.position.lerpVectors(
       startPos,
       new THREE.Vector3(0, 0, defaultCameraZ),
-      t
+      eased
     );
     model.scale.lerpVectors(
       startScale,
       new THREE.Vector3(initialModelScale, initialModelScale, initialModelScale),
-      t
+      eased
     );
-    camera.lookAt(0, 0, 0);
+    model.quaternion.slerpQuaternions(startRotation, frontRotation, eased);
+    controls.target.lerpVectors(startTarget, center, eased);
     controls.update();
     if (t < 1) requestAnimationFrame(frame);
     else {
       resetInProgress = false;
+      controls.enabled = true;
     }
   }
   frame();
 }
 window.addEventListener('keydown', e => {
-  if (e.key.toLowerCase() === 'c') smoothResetCamera();
+  if (['c', 'r'].includes(e.key.toLowerCase())) smoothResetCamera();
 });
 
 // Drag inertia
@@ -434,7 +416,7 @@ let isDragging = false;
 let prevMouse = new THREE.Vector2();
 let mouseDragVelocity = new THREE.Vector2();
 renderer.domElement.addEventListener('mousedown', e => {
-  if (e.button !== 0) return;            // only left‐click
+  if (e.button !== 0 || resetInProgress) return;
   isDragging = true;
   prevMouse.set(e.clientX, e.clientY);
   maybeStartAudio();
@@ -500,10 +482,8 @@ renderer.domElement.addEventListener('mouseup', () => {
   isHeld     = false;     // lift the “hold” so momentum can decay
   controls.enabled = true; // allow camera orbit again
 
-  if (isDragging) spins++;
   isDragging = false;
   mouseDragVelocity.set(0, 0);
-  updateBBButtonVisibility();
 });
 
 
@@ -714,18 +694,29 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
 
 
 // Instantiate buttons
-createIconButton({ id: 'recenterBtn', image: 'ckey.png', pressedImage: 'ckeypressed.png', onClick: smoothResetCamera, topOffset: '75%', rightOffset: '20px' });
+createIconButton({ id: 'recenterBtn', image: 'rkey.png', pressedImage: 'rkeypressed.png', onClick: smoothResetCamera, topOffset: '75%', rightOffset: '20px' });
 createIconButton({ id: 'playPauseBtn', image: 'playpause.png', pressedImage: 'playpausepressed.png', onClick: togglePlayPause, topOffset: '25%', rightOffset: '20px' });
 createIconButton({ id: 'nextTrackBtn', image: 'nexttrack.png', pressedImage: 'nexttrackpressed.png', onClick: nextTrack, topOffset: '30%', rightOffset: '20px' });
 createIconButton({ id: 'prevTrackBtn', image: 'prevtrack.png', pressedImage: 'prevtrackpressed.png', onClick: prevTrack, topOffset: '35%', rightOffset: '20px' });
 createIconButton({ id: 'muteBtn', image: 'mute.png', pressedImage: 'mutepressed.png', onClick: toggleMute, topOffset: '40%', rightOffset: '20px', toggle: true });
-const bbBtn = createIconButton({ id: 'bbBtn', image: 'gregkey.png', pressedImage: 'gregkeypressed.png', onClick: () => {}, topOffset: '85%', rightOffset: '20px' });
+const bbBtn = createIconButton({ id: 'bbBtn', image: 'gregkey.png', pressedImage: 'gregkeypressed.png', onClick: () => {}, topOffset: '56px', rightOffset: 'calc(50% - 25px)' });
+
+// Switch on when Greg is ready. The window follows the visitor's device clock.
+const gregScheduleEnabled = false;
+if (gregScheduleEnabled) {
+  const updateGregVisibility = () => {
+    bbBtn.style.display = new Date().getHours() < 6 ? 'block' : 'none';
+  };
+  updateGregVisibility();
+  window.setInterval(updateGregVisibility, 1000);
+  document.addEventListener('visibilitychange', updateGregVisibility);
+}
 
 // Pulsating model effect
 let scaleFactor = 1;
 let time = 0;
 function pulsateModel() {
-  if (!audio.paused && model) {
+  if (!audio.paused && model && !resetInProgress) {
     scaleFactor = 1 + Math.sin(time * 5) * 0.05;
     model.scale.set(
       initialModelScale * scaleFactor,
@@ -741,22 +732,8 @@ let bbPulseTime = 0;
 let bbRotationAngle = 0;
 let bbRotationDirection = 1;
 const bbRotationMax = THREE.MathUtils.degToRad(7);
-function updateBBButtonVisibility() {
-  if (!bbBtnVisible && (spins > 10 || audio.ended)) {
-    bbBtn.style.display = 'block';
-    bbBtnVisible = true;
-
-    // start the color transition
-    scene.traverse(o => {
-      if (o.isDirectionalLight) dirInitialColor.copy(o.color);
-    });
-    colorTransitionStart    = performance.now();
-    colorTransitionActive   = true;
-    pulseActive             = false;
-  }
-}
 function animateBBButton() {
-  if (!bbBtnVisible) return;
+  if (bbBtn.style.display === 'none') return;
   bbPulseTime += 0.05;
   const pulseScale = 0.9 + ((Math.sin(bbPulseTime) + 1) / 2) * 0.2;
   bbBtn.style.transform = `scale(${pulseScale}) rotate(${THREE.MathUtils.radToDeg(bbRotationAngle)}deg)`;
@@ -775,35 +752,6 @@ function animate() {
 
 
 
-
-// 3a) handle the fade‐in of your new hue
-if (colorTransitionActive) {
-  const t = Math.min((now - colorTransitionStart) / colorTransitionDuration, 1);
-  scene.traverse(o => {
-    if (o.isDirectionalLight) {
-      // lerp the color
-      o.color.copy(dirInitialColor).lerp(dirTargetColor, t);
-    }
-  });
-  if (t >= 1) {
-    colorTransitionActive = false;
-    pulseActive = true;
-    pulseStartTime = now;
-  }
-}
-
-// 3b) once tinted, give a throbbing intensity
-if (pulseActive) {
-  const elapsed = now - pulseStartTime;
-  // compute a [1–amplitude .. 1+amplitude] multiplier
-  const mult = 1 + Math.sin(elapsed * pulseSpeed) * pulseAmplitude;
-  scene.traverse(o => {
-    if (o.isDirectionalLight) {
-      o.intensity = baseDirIntensity * mult;
-    }
-  });
-}
-  
 
 // ⬇️ Update, fade & recycle via InstancedMesh ⬇️
 if (rainMesh) {
@@ -867,43 +815,9 @@ if (rainMesh) {
     );
 
     // if not holding the model, layer on the last-drag momentum and decay it
-    if (!isHeld) {
+    if (!isHeld && !resetInProgress) {
       model.quaternion.multiply(momentumQuat);
       momentumQuat.slerp(new THREE.Quaternion(), quatFriction);
-    }
-  }
-
-    // once BB button is active, do an erratic squash & stretch on the model itself
-  if (bbBtnVisible) {
-    bbSquashTime += bbSquashSpeed;
-
-    const sx = 1 +
-      Math.sin(bbSquashTime * 1.1) *
-      bbSquashAmount *
-      (0.5 + Math.random() * 0.5);
-    const sy = 1 +
-      Math.sin(bbSquashTime * 1.3) *
-      bbSquashAmount *
-      (0.5 + Math.random() * 0.5);
-    const sz = 1 +
-      Math.sin(bbSquashTime * 1.7) *
-      bbSquashAmount *
-      (0.5 + Math.random() * 0.5);
-
-    // apply squash/stretch on the model itself
-    model.scale.set(
-      initialModelScale * sx,
-      initialModelScale * sy,
-      initialModelScale * sz
-    );
-  }
-
-  // drive your GLSL cartoonSquash uniform in lock-step
-  if (bbBtnVisible && squashUniforms.length) {
-    // NOTE: no second bbSquashTime += here
-    const s = Math.sin(bbSquashTime * 2.0) * bbSquashAmount;
-    for (let uni of squashUniforms) {
-      uni.value = s;
     }
   }
 
