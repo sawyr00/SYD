@@ -729,7 +729,7 @@ createIconButton({ id: 'playPauseBtn', image: 'playpause.png', pressedImage: 'pl
 createIconButton({ id: 'nextTrackBtn', image: 'nexttrack.png', pressedImage: 'nexttrackpressed.png', onClick: nextTrack, topOffset: '30%', rightOffset: '20px' });
 createIconButton({ id: 'prevTrackBtn', image: 'prevtrack.png', pressedImage: 'prevtrackpressed.png', onClick: prevTrack, topOffset: '35%', rightOffset: '20px' });
 createIconButton({ id: 'muteBtn', image: 'mute.png', pressedImage: 'mutepressed.png', onClick: toggleMute, topOffset: '40%', rightOffset: '20px', toggle: true });
-const bbBtn = createIconButton({ id: 'bbBtn', image: 'bbkeyv4.png', pressedImage: 'bbkeypressedv4.png', onClick: () => {}, topOffset: '85%', rightOffset: '20px' });
+const bbBtn = createIconButton({ id: 'bbBtn', image: 'gregkey.png', pressedImage: 'gregkeypressed.png', onClick: () => {}, topOffset: '85%', rightOffset: '20px' });
 
 // Pulsating model effect
 let scaleFactor = 1;
