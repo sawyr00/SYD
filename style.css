@@ -79,7 +79,7 @@ canvas {
   }
 
   .track-title-strip {
-    --track-title-top: 0px;
+    --track-title-top: 2px;
     height: var(--track-title-band-height);
     --track-title-max-height: 33.6px;
     --track-title-gap: max(0px, calc(43.2px - 8vw));
