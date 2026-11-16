@@ -67,7 +67,7 @@ canvas {
 @media (max-width: 600px), (max-width: 950px) and (pointer: coarse) {
   body {
     background-size: 286px 286px;
-    background-position: -8px 0;
+    background-position: -28px 0;
     --track-title-band-height: 54px;
     --player-top: clamp(68px, 25vh, calc(100vh - 222px));
     --player-step: 43px;
@@ -81,8 +81,8 @@ canvas {
   .track-title-strip {
     --track-title-top: 0px;
     height: var(--track-title-band-height);
-    --track-title-max-height: 28px;
-    --track-title-gap: 36px;
+    --track-title-max-height: 33.6px;
+    --track-title-gap: max(0px, calc(43.2px - 8vw));
   }
 
   [data-icon] {
