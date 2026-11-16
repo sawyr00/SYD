@@ -16,7 +16,7 @@ function hidePreloader() {
   const main = document.getElementById('main-content');
 
   // immediately remove the overlay
-  pre.remove();
+  pre?.remove();
 
   // show your real content
   main.style.visibility = 'visible';
@@ -181,12 +181,7 @@ let model;
 // …up above, where you have let model; let squashGroup; …
 let squashUniforms = [];    // ← define this once for the entire script
 let squashGroup;  // group for rotating squash/stretch axes
-// randomized slow “idle” spin
-let rotationVelocity = new THREE.Vector3(
-  THREE.MathUtils.randFloat(-0.002,  0.002),
-  THREE.MathUtils.randFloat(-0.002,  0.002),
-  THREE.MathUtils.randFloat(-0.002,  0.002)
-);
+let hoverHeight = 0;
 
 const maxRotationSpeed = 0.02;
 // the idle spin speed we decay back toward each frame
@@ -340,9 +335,13 @@ loader.load('models/b&b_candyshell_yellow.glb', gltf => {
 // ───────────────────────────────────────────────────────
 // 4.3) MAIN MODEL LOADER
 // ───────────────────────────────────────────────────────
-loader.load('models/n64cartridge1.glb', gltf => {
-  console.log('✅ cartridge loaded:', gltf);
-  model = gltf.scene;
+loader.load('models/Narby_Head-Web.glb', gltf => {
+  const head = gltf.scene;
+  const box = new THREE.Box3().setFromObject(head);
+  const size = box.getSize(new THREE.Vector3());
+  head.position.sub(box.getCenter(new THREE.Vector3()));
+  model = new THREE.Group();
+  model.add(head);
   model.traverse(c => {
     if (c.isMesh) {
       c.castShadow    = true;
@@ -351,21 +350,13 @@ loader.load('models/n64cartridge1.glb', gltf => {
   });
 
   // center + light
-  const box    = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
+  hoverHeight = size.y * initialModelScale * 0.045;
   const fill   = new THREE.PointLight(0xffffff, 0.8, 10);
   fill.position.set(0,2,2);
   fill.castShadow = false;
   model.add(fill);
 
-  model.position.sub(center);
-  model.scale.set(initialModelScale, initialModelScale, initialModelScale);
-
-  model.rotation.set(
-    THREE.MathUtils.degToRad(-32),
-    THREE.MathUtils.degToRad(-25),
-    THREE.MathUtils.degToRad(-15)
-  );
+  model.scale.setScalar(initialModelScale);
 
   squashGroup = new THREE.Group();
   squashGroup.add(model);
@@ -385,9 +376,9 @@ loader.load('models/n64cartridge1.glb', gltf => {
   scene.add(keyLight);
 
   // position camera
-  const size = box.getSize(new THREE.Vector3()).length();
   const fov  = camera.fov * Math.PI / 180;
-  defaultCameraZ = size / (2 * Math.tan(fov/2)) * 1.5;
+  const frameSize = Math.max(size.y, size.x / camera.aspect) * initialModelScale;
+  defaultCameraZ = frameSize / (2 * Math.tan(fov / 2)) * 1.55 + size.z * initialModelScale / 2;
   camera.position.set(0,0,defaultCameraZ);
   controls.target.set(0,0,0);
   controls.update();
@@ -430,7 +421,6 @@ function smoothResetCamera() {
     if (t < 1) requestAnimationFrame(frame);
     else {
       resetInProgress = false;
-      rotationVelocity.set(0.002, 0.002, 0.002);
     }
   }
   frame();
@@ -867,12 +857,14 @@ if (rainMesh) {
   pulsateModel();
   animateBBButton();
 
-  // main model rotation: idle spin + momentum
+  // Float the parent group so the idle motion and drag rotation stay independent.
   if (model) {
-    // always apply a slow randomized idle spin
-    model.rotateOnAxis(new THREE.Vector3(1,0,0), rotationVelocity.x);
-    model.rotateOnAxis(new THREE.Vector3(0,1,0), rotationVelocity.y);
-    model.rotateOnAxis(new THREE.Vector3(0,0,1), rotationVelocity.z);
+    squashGroup.position.y = hoverHeight * Math.sin(tNow * 1.45);
+    squashGroup.rotation.set(
+      0.055 * Math.sin(tNow * 0.93),
+      0.12 * Math.sin(tNow * 0.71),
+      0.035 * Math.sin(tNow * 1.13)
+    );
 
     // if not holding the model, layer on the last-drag momentum and decay it
     if (!isHeld) {
