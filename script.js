@@ -382,7 +382,7 @@ function smoothResetCamera() {
     model.quaternion.slerpQuaternions(startRotation, frontRotation, eased);
     controls.target.lerpVectors(startTarget, center, eased);
     if (faceReset.length) {
-      const faceProgress = Math.min(t * 2, 1);
+      const faceProgress = Math.min(t * 1.5, 1);
       resetFacePose(faceReset, faceProgress);
       if (faceProgress === 1) faceReset.length = 0;
     }
@@ -539,7 +539,15 @@ function prepareFaceStretch(head, size) {
   model.updateMatrixWorld(true);
   const regionAnchors = new Map();
   const earRegions = new Map();
+  const eyeRegions = new Map();
   const followers = [];
+  const pupils = [];
+  const makeAnchor = () => {
+    const anchor = { offset: new THREE.Vector3(), parts: new Set() };
+    faceAnchors.push(anchor);
+    return anchor;
+  };
+  const hatBill = makeAnchor();
   head.traverse(mesh => {
     if (!mesh.isMesh) return;
     mesh.geometry = mesh.geometry.clone();
@@ -566,26 +574,59 @@ function prepareFaceStretch(head, size) {
         continue;
       }
       if (!regionAnchors.has(region.name)) {
-        const anchor = { offset: new THREE.Vector3(), parts: new Set() };
-        regionAnchors.set(region.name, anchor);
-        faceAnchors.push(anchor);
+        regionAnchors.set(region.name, makeAnchor());
       }
       region.anchor = regionAnchors.get(region.name);
       region.anchor.parts.add(part);
       if (region.name.endsWith('-ear')) earRegions.set(region.name, region);
+      if (region.name.endsWith('-eye-white')) eyeRegions.set(region.name, region);
+      const pointCount = region.name.endsWith('-ear') ? 9 : region.name === 'nose' ? 7 : 0;
+      if (pointCount) {
+        region.points = [];
+        const candidates = region.vertices.map(index => new THREE.Vector3()
+          .fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld));
+        distributeFacePoints(region.points, candidates, pointCount, makeAnchor);
+        for (const point of region.points) point.parts.add(part);
+      }
+      if (region.name.endsWith('-pupil')) pupils.push({ part, region });
       for (const index of region.vertices) {
         const weight = regionStretchWeight(region, part.neutral, index);
-        part.vertices.push({ index, weights: [{ anchor: region.anchor, weight }] });
+        let weights = [{ anchor: region.anchor, weight }];
+        if (region.points) {
+          faceVertex.fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld);
+          weights = localizedWeights(region.points, faceVertex, weight, size.y * 0.17);
+        }
+        if (region.name === 'hat') {
+          const bill = hatBillWeight(part.neutral, index);
+          hatBill.parts.add(part);
+          region.bill = hatBill;
+          weights = [{ anchor: region.anchor, weight: weight * (1 - bill) }, { anchor: hatBill, weight: weight * bill }];
+        }
+        const vertex = { index, weights };
+        part.vertices.push(vertex);
+        if (region.name.endsWith('-pupil')) (region.influences ??= []).push(vertex);
       }
     }
   });
 
   for (const { part, region } of followers) {
     const ear = earRegions.get(region.name);
-    ear.anchor.parts.add(part);
     const weight = regionStretchWeight(ear, region.center, 0);
+    faceVertex.fromArray(region.center).applyMatrix4(part.mesh.matrixWorld);
+    const weights = localizedWeights(ear.points, faceVertex, weight, size.y * 0.17);
+    for (const { anchor } of weights) anchor.parts.add(part);
     for (const index of region.vertices) {
-      part.vertices.push({ index, weights: [{ anchor: ear.anchor, weight }] });
+      part.vertices.push({ index, weights });
+    }
+  }
+  for (const { part, region } of pupils) {
+    const eye = eyeRegions.get(region.name.replace('pupil', 'eye-white'));
+    if (!eye) continue;
+    const pupilBase = [region.center[0], region.center[1], region.min[2]];
+    const weight = regionStretchWeight(eye, pupilBase, 0);
+    eye.anchor.parts.add(part);
+    for (const vertex of region.influences) {
+      vertex.weights.push({ anchor: eye.anchor, weight });
     }
   }
 
@@ -605,38 +646,84 @@ function prepareFaceStretch(head, size) {
       faceAnchors.push(anchor);
     }
   }
+  const skinCandidates = skinParts.flatMap(part => part.regions.flatMap((region, index) =>
+    region.name === 'skin'
+      ? [new THREE.Vector3().fromBufferAttribute(part.position, index).applyMatrix4(part.mesh.matrixWorld)]
+      : []));
+  distributeFacePoints(skinAnchors, skinCandidates, 36, makeAnchor);
 
-  const influenceRadius = size.y * 0.19;
+  const influenceRadius = size.y * 0.23;
   maxFacePull = size.y * 0.25;
   for (const part of skinParts) {
     for (let index = 0; index < part.position.count; index++) {
       if (part.regions[index].name !== 'skin') continue;
       faceVertex.fromBufferAttribute(part.position, index).applyMatrix4(part.mesh.matrixWorld);
-      const weights = [];
-      for (const anchor of skinAnchors) {
-        const fraction = 1 - faceVertex.distanceTo(anchor.point) / influenceRadius;
-        if (fraction > 0) {
-          weights.push({ anchor, weight: fraction * fraction * (3 - 2 * fraction) });
-          anchor.parts.add(part);
-        }
-      }
+      const weights = localizedWeights(skinAnchors, faceVertex, 1, influenceRadius);
+      for (const { anchor } of weights) anchor.parts.add(part);
       if (weights.length) part.vertices.push({ index, weights });
     }
   }
 }
 
+function distributeFacePoints(points, candidates, count, makeAnchor) {
+  while (points.length < count && candidates.length) {
+    let farthest = candidates[0];
+    let greatestDistance = -1;
+    for (const candidate of candidates) {
+      let distance = Infinity;
+      for (const point of points) distance = Math.min(distance, candidate.distanceToSquared(point.point));
+      if (distance > greatestDistance) {
+        farthest = candidate;
+        greatestDistance = distance;
+      }
+    }
+    if (greatestDistance <= 0) break;
+    const anchor = makeAnchor();
+    anchor.point = farthest.clone();
+    points.push(anchor);
+  }
+}
+
+function localizedWeights(points, vertex, strength, radius) {
+  const weights = [];
+  let nearest = points[0];
+  let nearestDistance = Infinity;
+  for (const anchor of points) {
+    const distance = vertex.distanceTo(anchor.point);
+    if (distance < nearestDistance) {
+      nearest = anchor;
+      nearestDistance = distance;
+    }
+    if (distance < radius) {
+      weights.push({ anchor, weight: strength * (1 - THREE.MathUtils.smoothstep(distance, 0, radius)) });
+    }
+  }
+  if (!weights.length && nearest) weights.push({ anchor: nearest, weight: strength * 0.1 });
+  return weights;
+}
+
+function hatBillWeight(positions, index) {
+  const i = index * 3;
+  return THREE.MathUtils.smoothstep(-positions[i + 2], 1.05, 1.95)
+    * (1 - THREE.MathUtils.smoothstep(positions[i + 1], 1.25, 1.75));
+}
+
 function regionStretchWeight(region, positions, index) {
+  const i = index * 3;
   if (region.name === 'hat') {
-    return THREE.MathUtils.smoothstep(positions[index * 3 + 1], 0.53, 2.69);
+    const distance = Math.hypot(positions[i], positions[i + 1] - 0.53, positions[i + 2] + 0.75);
+    return THREE.MathUtils.smoothstep(distance, 0.18, 1.65);
   }
   if (region.axis === undefined) return 1;
   const min = region.min[region.axis];
   const max = region.max[region.axis];
   if (max === min) return 1;
-  const value = positions[index * 3 + region.axis];
+  const value = positions[i + region.axis];
   const fraction = THREE.MathUtils.clamp((value - min) / (max - min), 0, 1);
   const t = region.reverse ? 1 - fraction : fraction;
-  return t * t * (3 - 2 * t);
+  const seam = region.midline === undefined
+    ? 1 : THREE.MathUtils.smoothstep(Math.abs(positions[i] - region.midline), 0, 0.09);
+  return t * t * (3 - 2 * t) * seam;
 }
 
 function setFaceRay(clientX, clientY) {
@@ -674,15 +761,23 @@ function startFaceGrab(event) {
   setFaceRay(event.clientX, event.clientY);
   const hit = faceRay.intersectObjects(faceMeshes.map(part => part.mesh), false)[0];
   if (!hit) return;
-  const region = faceMeshes.find(part => part.mesh === hit.object).regions[hit.face.a];
+  const part = faceMeshes.find(part => part.mesh === hit.object);
+  const localHit = hit.object.worldToLocal(hit.point.clone());
+  const hitVertices = [hit.face.a, hit.face.b, hit.face.c];
+  hitVertices.sort((a, b) =>
+    faceVertex.fromBufferAttribute(part.position, a).distanceToSquared(localHit)
+    - faceVertex.fromBufferAttribute(part.position, b).distanceToSquared(localHit));
+  const region = part.regions[hitVertices[0]];
   if (region.follower) return;
 
   const inverse = model.matrixWorld.clone().invert();
   const grabOrigin = hit.point.clone().applyMatrix4(inverse);
-  let nearest = region.anchor;
+  let nearest = region.bill && hatBillWeight(part.neutral, hitVertices[0]) >= 0.5
+    ? region.bill : region.anchor;
   let nearestDistance = Infinity;
-  if (region.name === 'skin') {
-    for (const anchor of skinAnchors) {
+  const points = region.name === 'skin' ? skinAnchors : region.points;
+  if (points) {
+    for (const anchor of points) {
       const distance = faceVertex.copy(anchor.point).add(anchor.offset).distanceToSquared(grabOrigin);
       if (distance < nearestDistance) {
         nearest = anchor;
