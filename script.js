@@ -1143,9 +1143,7 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   }
 
   if (id === 'bbBtn') {
-    btn.style.display    = 'none';
-    btn.style.boxShadow  = '0 0 15px 3px rgba(255,0,0,0.7)';
-    btn.style.transition = 'box-shadow 0.3s ease';
+    btn.style.display = 'none';
   }
 
   const shadow = document.createElement('div');
@@ -1182,7 +1180,7 @@ createIconButton({ id: 'playPauseBtn', image: 'playpause.png', pressedImage: 'pl
 createIconButton({ id: 'nextTrackBtn', image: 'nexttrack.png', pressedImage: 'nexttrackpressed.png', onClick: nextTrack, topOffset: '30%', rightOffset: '20px' });
 createIconButton({ id: 'prevTrackBtn', image: 'prevtrack.png', pressedImage: 'prevtrackpressed.png', onClick: prevTrack, topOffset: '35%', rightOffset: '20px' });
 createIconButton({ id: 'muteBtn', image: 'mute.png', pressedImage: 'mutepressed.png', onClick: toggleMute, topOffset: '40%', rightOffset: '20px', toggle: true });
-const bbBtn = createIconButton({ id: 'bbBtn', image: 'gregkey.png', pressedImage: 'gregkeypressed.png', onClick: toggleGregHead, topOffset: '56px', rightOffset: 'calc(50% - 25px)' });
+const bbBtn = createIconButton({ id: 'bbBtn', image: 'gregkey.png', pressedImage: 'gregkeypressed.png', onClick: toggleGregHead, topOffset: '68px', rightOffset: 'calc(50% - var(--icon-size) / 2)' });
 
 // Turn off test mode to use the visitor's local midnight–6 a.m. window.
 const gregTestMode = true;
@@ -1205,6 +1203,14 @@ async function loadGregHead() {
     gregLoader.loadAsync(directory + 'GregHead-Web.glb'),
     gregLoader.loadAsync(directory + 'EyeblinkAnimation.glb')
   ]);
+  const eyelidMaterial = new THREE.MeshStandardMaterial({
+    color: 0x505460,
+    roughness: 0.85
+  });
+  lids.scene.traverse(object => {
+    if (!object.isMesh) return;
+    object.material = eyelidMaterial;
+  });
   const aligned = new THREE.Group();
   aligned.add(head.scene, lids.scene);
   aligned.rotation.y = -Math.PI / 2;
@@ -1272,7 +1278,7 @@ function updateGregBlink(now, frameSeconds) {
 
 function updateHeadSwap(now) {
   if (!headSwap) return;
-  const halfDuration = 2;
+  const halfDuration = 1.5;
   const elapsed = now - headSwap.started;
   if (elapsed >= halfDuration && !headSwap.changed) {
     model.visible = false;
@@ -1296,10 +1302,12 @@ function updateHeadSwap(now) {
   const energy = THREE.MathUtils.smoothstep(phase, 0, 0.55);
   const size = 1 - THREE.MathUtils.smoothstep(phase, 0.05, 1);
   const tumble = phase * phase;
+  const vortex = 10 * Math.PI * tumble;
   headSwapRig.rotation.set(
     8 * tumble + Math.sin(phase * 31) * energy * 0.65,
     17 * tumble + Math.sin(phase * 41) * energy * 0.5,
-    -11 * tumble + Math.sin(phase * 53) * energy * 0.7
+    -vortex + Math.sin(phase * 53) * energy * 0.7,
+    'ZYX'
   );
   headSwapRig.position.x = Math.sin(phase * 63) * size * energy * 0.15;
   headSwapRig.scale.set(
@@ -1330,22 +1338,6 @@ function pulsateModel() {
   }
 }
 
-// BB Button animation
-let bbPulseTime = 0;
-let bbRotationAngle = 0;
-let bbRotationDirection = 1;
-const bbRotationMax = THREE.MathUtils.degToRad(7);
-function animateBBButton() {
-  if (bbBtn.style.display === 'none') return;
-  bbPulseTime += 0.05;
-  const pulseScale = 0.9 + ((Math.sin(bbPulseTime) + 1) / 2) * 0.2;
-  bbBtn.style.transform = `scale(${pulseScale}) rotate(${THREE.MathUtils.radToDeg(bbRotationAngle)}deg)`;
-  bbRotationAngle += bbRotationDirection * 0.002;
-  if (bbRotationAngle > bbRotationMax) bbRotationDirection = -1;
-  else if (bbRotationAngle < -bbRotationMax) bbRotationDirection = 1;
-  const glowAlpha = 0.5 + ((Math.sin(bbPulseTime * 2) + 1) / 4);
-  bbBtn.style.boxShadow = `0 0 15px 3px rgba(255, 0, 0, ${glowAlpha})`;
-}
 
 
 
@@ -1482,11 +1474,10 @@ if (rainMesh) {
 }
 
 
-  // pulsation & BB-button
+  // Head swap, blink, and music pulse
   updateHeadSwap(tNow);
   updateGregBlink(tNow, frameSeconds);
   pulsateModel();
-  animateBBButton();
 
   // Float the parent group so the idle motion and drag rotation stay independent.
   if (model) {
