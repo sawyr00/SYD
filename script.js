@@ -1044,10 +1044,8 @@ function togglePlayPause() {
   userHasPressedPlay = true;
   if (audio.paused) {
     audio.play();
-    document.getElementById('playPauseBtn').style.backgroundImage = 'url("images/playpause.png")';
   } else {
     audio.pause();
-    document.getElementById('playPauseBtn').style.backgroundImage = 'url("images/playpausepressed.png")';
   }
 }
 
