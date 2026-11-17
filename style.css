@@ -67,6 +67,15 @@ canvas {
   pointer-events: none;
 }
 
+.greg-track-title {
+  color: #d9dff5;
+  font: bold clamp(11px, 2.5vw, 18px) / 1.35 Verdana, Geneva, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 /* Mobile layout */
 @media (max-width: 600px), (max-width: 950px) and (pointer: coarse) {
   body {

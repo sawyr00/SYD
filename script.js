@@ -974,6 +974,10 @@ function shuffleArray(array) {
 
 shuffleArray(tracks);  // ← randomize on every page load
 
+const narbyPlaylist = tracks.map(path => ({ path }));
+let gregPlaylist = [];
+let activePlaylist = narbyPlaylist;
+const playlistPositions = new Map();
 let currentTrack = 0;
 const audio = new Audio(tracks[currentTrack]);
 const buttonPressSound = new Audio('audio/_sound%20fx/button%20press%203.mp3');
@@ -1026,13 +1030,20 @@ function getBaseName(path) {
 }
 
 function updateNowPlaying() {
+  const gregTitles = activePlaylist === gregPlaylist;
   const titles = [-1, 0, 1].map(offset => {
-    const path = tracks[(currentTrack + offset + tracks.length) % tracks.length];
-    const trackNumber = path.split('/').pop().slice(0, 2);
-    const title = document.createElement('img');
-    const suffix = offset === 0 ? '-current' : '';
-    title.src = `images/track-titles/${trackNumber}${suffix}.png`;
-    title.alt = getBaseName(path);
+    const track = activePlaylist[(currentTrack + offset + activePlaylist.length) % activePlaylist.length];
+    const title = document.createElement(gregTitles ? 'span' : 'img');
+    if (gregTitles) {
+      title.className = 'greg-track-title';
+      title.textContent = track.title;
+      title.title = track.title;
+    } else {
+      const trackNumber = track.path.split('/').pop().slice(0, 2);
+      const suffix = offset === 0 ? '-current' : '';
+      title.src = `images/track-titles/${trackNumber}${suffix}.png`;
+      title.alt = getBaseName(track.path);
+    }
     const fade = offset === 0
       ? 'none'
       : `linear-gradient(to ${offset < 0 ? 'right' : 'left'}, transparent, rgba(0, 0, 0, 0.9))`;
@@ -1055,10 +1066,16 @@ function updateNowPlaying() {
 updateNowPlaying();
 
 // Audio control functions
+function playPlaylistAudio() {
+  audio.play().catch(error => {
+    if (error.name !== 'AbortError') console.warn('Could not play the selected track:', error);
+  });
+}
+
 function togglePlayPause() {
   userHasPressedPlay = true;
   if (audio.paused) {
-    audio.play();
+    playPlaylistAudio();
   } else {
     audio.pause();
   }
@@ -1066,10 +1083,23 @@ function togglePlayPause() {
 
 function changeTrack(offset) {
   const wasPlaying = !audio.paused;
-  currentTrack = (currentTrack + offset + tracks.length) % tracks.length;
-  audio.src = tracks[currentTrack];
+  currentTrack = (currentTrack + offset + activePlaylist.length) % activePlaylist.length;
+  audio.src = activePlaylist[currentTrack].path;
   updateNowPlaying();
-  if (wasPlaying) audio.play();
+  if (wasPlaying) playPlaylistAudio();
+}
+
+function switchPlaylist(playlist) {
+  if (playlist === activePlaylist || !playlist.length) return;
+  const wasPlaying = !audio.paused;
+  playlistPositions.set(activePlaylist, { index: currentTrack, time: audio.currentTime });
+  activePlaylist = playlist;
+  const previous = playlistPositions.get(playlist);
+  currentTrack = previous?.index ?? 0;
+  audio.src = playlist[currentTrack].path;
+  if (previous?.time) audio.currentTime = previous.time;
+  updateNowPlaying();
+  if (wasPlaying) playPlaylistAudio();
 }
 
 function nextTrack() {
@@ -1199,12 +1229,23 @@ function updateGregVisibility() {
 async function loadGregHead() {
   const gregLoader = new GLTFLoader();
   const directory = 'models/GregHeadFinalPieced/';
-  const [head, lids] = await Promise.all([
+  const [head, lids, fur, playlist] = await Promise.all([
     gregLoader.loadAsync(directory + 'GregHead-Web.glb'),
-    gregLoader.loadAsync(directory + 'EyeblinkAnimation.glb')
+    gregLoader.loadAsync(directory + 'EyeblinkAnimation.glb'),
+    new THREE.TextureLoader().loadAsync('images/greg-eyelid-fur.png'),
+    fetch('greg-playlist.json', { cache: 'no-cache' }).then(response => {
+      if (!response.ok) throw new Error('Could not load the Greg playlist');
+      return response.json();
+    })
   ]);
+  if (!Array.isArray(playlist) || !playlist.length) throw new Error('The Greg playlist is empty');
+  gregPlaylist = playlist;
+  shuffleArray(gregPlaylist);
+  fur.flipY = false;
+  fur.encoding = THREE.sRGBEncoding;
+  fur.wrapS = fur.wrapT = THREE.RepeatWrapping;
   const eyelidMaterial = new THREE.MeshStandardMaterial({
-    color: 0x505460,
+    map: fur,
     roughness: 0.85
   });
   lids.scene.traverse(object => {
@@ -1284,6 +1325,7 @@ function updateHeadSwap(now) {
     model.visible = false;
     model = headSwap.target;
     model.visible = true;
+    switchPlaylist(model === gregModel ? gregPlaylist : narbyPlaylist);
     hoverHeight = model === gregModel ? gregHoverHeight : narbyHoverHeight;
     headSwap.changed = true;
     if (model === gregModel) updateGregVisibility();
