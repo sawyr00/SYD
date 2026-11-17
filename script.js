@@ -181,6 +181,16 @@ function initDrops(srcMesh) {
 // Model & rotation state
 let model;
 let squashGroup;  // group for rotating squash/stretch axes
+const headSwapRig = new THREE.Group();
+let narbyModel;
+let gregModel;
+let narbyHoverHeight;
+let gregHoverHeight;
+let headSwap = null;
+let gregLoading = false;
+let gregBlinkMixer;
+let gregBlinkActions = [];
+let gregNextBlink = Infinity;
 let hoverHeight = 0;
 
 const maxRotationSpeed = 0.02;
@@ -299,6 +309,7 @@ loader.load('models/Narby_Head-Web.glb', gltf => {
   head.position.sub(box.getCenter(new THREE.Vector3()));
   model = new THREE.Group();
   model.add(head);
+  narbyModel = model;
   prepareFaceStretch(head, size);
   model.traverse(c => {
     if (c.isMesh) {
@@ -309,6 +320,7 @@ loader.load('models/Narby_Head-Web.glb', gltf => {
 
   // center + light
   hoverHeight = size.y * initialModelScale * 0.045;
+  narbyHoverHeight = hoverHeight;
   const fill   = new THREE.PointLight(0xffffff, 0.8, 10);
   fill.position.set(0,2,2);
   fill.castShadow = false;
@@ -317,7 +329,8 @@ loader.load('models/Narby_Head-Web.glb', gltf => {
   model.scale.setScalar(initialModelScale);
 
   squashGroup = new THREE.Group();
-  squashGroup.add(model);
+  headSwapRig.add(model);
+  squashGroup.add(headSwapRig);
   scene.add(squashGroup);
 
   const keyLight = new THREE.SpotLight(0xffffff, 0.1);
@@ -349,14 +362,16 @@ window.addEventListener('resize', () => {
 // Smooth reset
 let resetInProgress = false;
 function smoothResetCamera() {
-  if (resetInProgress || !model) return;
+  if (resetInProgress || !model || headSwap) return;
   if (faceGrab) finishFaceGrab(faceGrab.pointerId);
-  const faceReset = faceMeshes
+  const faceReset = (model === narbyModel ? faceMeshes : [])
     .filter(part => part.changed)
     .map(part => ({ part, start: part.position.array.slice() }));
   if (faceReset.length) playSoundEffect(bounceBackSound);
   const pupilReset = facePupils.map(pupil => ({ pupil, start: pupil.anchor.offset.clone() }));
-  for (const anchor of faceAnchors) anchor.offset.set(0, 0, 0);
+  if (model === narbyModel) {
+    for (const anchor of faceAnchors) anchor.offset.set(0, 0, 0);
+  }
   resetInProgress = true;
   turnVelocity.set(0, 0);
   controls.enabled = false;
@@ -821,12 +836,12 @@ function updateFaceGeometry(part, restoreNormals = false) {
 }
 
 function startFaceGrab(event) {
-  if (event.button !== 0 || resetInProgress || faceGrab) return;
+  if (event.button !== 0 || resetInProgress || faceGrab || headSwap) return;
   if (!faceStretchUnlocked) {
     maybeStartAudio();
     return;
   }
-  if (!model || !faceAnchors.length) return;
+  if (model !== narbyModel || !model || !faceAnchors.length) return;
   scene.updateMatrixWorld(true);
   setFaceRay(event.clientX, event.clientY);
   const hit = faceRay.intersectObjects(faceMeshes.map(part => part.mesh), false)[0];
@@ -1167,15 +1182,135 @@ createIconButton({ id: 'playPauseBtn', image: 'playpause.png', pressedImage: 'pl
 createIconButton({ id: 'nextTrackBtn', image: 'nexttrack.png', pressedImage: 'nexttrackpressed.png', onClick: nextTrack, topOffset: '30%', rightOffset: '20px' });
 createIconButton({ id: 'prevTrackBtn', image: 'prevtrack.png', pressedImage: 'prevtrackpressed.png', onClick: prevTrack, topOffset: '35%', rightOffset: '20px' });
 createIconButton({ id: 'muteBtn', image: 'mute.png', pressedImage: 'mutepressed.png', onClick: toggleMute, topOffset: '40%', rightOffset: '20px', toggle: true });
-const bbBtn = createIconButton({ id: 'bbBtn', image: 'gregkey.png', pressedImage: 'gregkeypressed.png', onClick: () => {}, topOffset: '56px', rightOffset: 'calc(50% - 25px)' });
+const bbBtn = createIconButton({ id: 'bbBtn', image: 'gregkey.png', pressedImage: 'gregkeypressed.png', onClick: toggleGregHead, topOffset: '56px', rightOffset: 'calc(50% - 25px)' });
 
-// Switch on when Greg is ready. The window follows the visitor's device clock.
-const gregScheduleEnabled = false;
-if (gregScheduleEnabled) {
-  const updateGregVisibility = () => {
-    bbBtn.style.display = new Date().getHours() < 6 ? 'block' : 'none';
-  };
-  updateGregVisibility();
+// Turn off test mode to use the visitor's local midnight–6 a.m. window.
+const gregTestMode = true;
+function gregAvailable() {
+  return gregTestMode || new Date().getHours() < 6;
+}
+
+function updateGregVisibility() {
+  const available = gregAvailable();
+  bbBtn.style.display = available && (!gregModel || model !== gregModel) ? 'block' : 'none';
+  if (!available && gregModel && model === gregModel && !headSwap && !resetInProgress) {
+    beginHeadSwap(narbyModel);
+  }
+}
+
+async function loadGregHead() {
+  const gregLoader = new GLTFLoader();
+  const directory = 'models/GregHeadFinalPieced/';
+  const [head, lids] = await Promise.all([
+    gregLoader.loadAsync(directory + 'GregHead-Web.glb'),
+    gregLoader.loadAsync(directory + 'EyeblinkAnimation.glb')
+  ]);
+  const aligned = new THREE.Group();
+  aligned.add(head.scene, lids.scene);
+  aligned.rotation.y = -Math.PI / 2;
+  aligned.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(head.scene);
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3());
+  aligned.position.sub(center);
+
+  const greg = new THREE.Group();
+  greg.add(aligned);
+  greg.scale.setScalar(initialModelScale);
+  greg.visible = false;
+  gregHoverHeight = size.y * initialModelScale * 0.045;
+  gregBlinkMixer = new THREE.AnimationMixer(lids.scene);
+  gregBlinkActions = lids.animations.map(clip => {
+    const action = gregBlinkMixer.clipAction(clip);
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    action.play();
+    action.paused = true;
+    return action;
+  });
+  gregBlinkMixer.update(0);
+  headSwapRig.add(greg);
+  gregModel = greg;
+}
+
+async function toggleGregHead() {
+  if (!narbyModel || model !== narbyModel || headSwap || resetInProgress || gregLoading || !gregAvailable()) return;
+  if (!gregModel) {
+    gregLoading = true;
+    bbBtn.setAttribute('aria-busy', 'true');
+    try {
+      await loadGregHead();
+    } catch (error) {
+      console.error('Failed to load Greg:', error);
+      return;
+    } finally {
+      gregLoading = false;
+      bbBtn.removeAttribute('aria-busy');
+    }
+  }
+  if (gregAvailable() && !resetInProgress && !headSwap) beginHeadSwap(gregModel);
+}
+
+function beginHeadSwap(target) {
+  if (faceGrab) finishFaceGrab(faceGrab.pointerId);
+  turnVelocity.set(0, 0);
+  headSwap = { target, started: performance.now() * 0.001, changed: false };
+}
+
+function scheduleGregBlink(now) {
+  gregNextBlink = now + THREE.MathUtils.randFloat(3.6, 6.4);
+}
+
+function updateGregBlink(now, frameSeconds) {
+  if (!gregModel || model !== gregModel) return;
+  if (!headSwap && now >= gregNextBlink) {
+    for (const action of gregBlinkActions) action.reset().play();
+    scheduleGregBlink(now);
+  }
+  gregBlinkMixer.update(frameSeconds);
+}
+
+function updateHeadSwap(now) {
+  if (!headSwap) return;
+  const halfDuration = 2;
+  const elapsed = now - headSwap.started;
+  if (elapsed >= halfDuration && !headSwap.changed) {
+    model.visible = false;
+    model = headSwap.target;
+    model.visible = true;
+    hoverHeight = model === gregModel ? gregHoverHeight : narbyHoverHeight;
+    headSwap.changed = true;
+    if (model === gregModel) updateGregVisibility();
+  }
+  if (elapsed >= 2 * halfDuration) {
+    headSwapRig.position.set(0, 0, 0);
+    headSwapRig.rotation.set(0, 0, 0);
+    headSwapRig.scale.setScalar(1);
+    headSwap = null;
+    if (model === gregModel) scheduleGregBlink(now);
+    updateGregVisibility();
+    return;
+  }
+  // The incoming head traces the outgoing head's motion backward.
+  const phase = elapsed < halfDuration ? elapsed / halfDuration : 2 - elapsed / halfDuration;
+  const energy = THREE.MathUtils.smoothstep(phase, 0, 0.55);
+  const size = 1 - THREE.MathUtils.smoothstep(phase, 0.05, 1);
+  const tumble = phase * phase;
+  headSwapRig.rotation.set(
+    8 * tumble + Math.sin(phase * 31) * energy * 0.65,
+    17 * tumble + Math.sin(phase * 41) * energy * 0.5,
+    -11 * tumble + Math.sin(phase * 53) * energy * 0.7
+  );
+  headSwapRig.position.x = Math.sin(phase * 63) * size * energy * 0.15;
+  headSwapRig.scale.set(
+    size * (1 + Math.sin(phase * 61) * energy * 0.31),
+    size * (1 + Math.sin(phase * 83) * energy * 0.33),
+    size * (1 + Math.sin(phase * 73) * energy * 0.29)
+  );
+}
+
+updateGregVisibility();
+if (!gregTestMode) {
   window.setInterval(updateGregVisibility, 1000);
   document.addEventListener('visibilitychange', updateGregVisibility);
 }
@@ -1184,7 +1319,7 @@ if (gregScheduleEnabled) {
 let scaleFactor = 1;
 let time = 0;
 function pulsateModel() {
-  if (!audio.paused && model && !resetInProgress) {
+  if (!audio.paused && model && !resetInProgress && !headSwap) {
     scaleFactor = 1 + Math.sin(time * 5) * 0.05;
     model.scale.set(
       initialModelScale * scaleFactor,
@@ -1281,7 +1416,7 @@ window.addEventListener('blur', releaseStick);
 const turnAxes = new THREE.Euler(0, 0, 0, 'YXZ');
 const turnDelta = new THREE.Quaternion();
 function updateHeadTurn(frameSeconds) {
-  if (resetInProgress || faceGrab) return;
+  if (resetInProgress || faceGrab || headSwap) return;
   turnTarget.copy(stickInput).multiplyScalar(1.55);
   turnVelocity.lerp(turnTarget, 1 - Math.exp(-frameSeconds / 0.12));
   if (turnVelocity.lengthSq() < 0.000025) return;
@@ -1348,6 +1483,8 @@ if (rainMesh) {
 
 
   // pulsation & BB-button
+  updateHeadSwap(tNow);
+  updateGregBlink(tNow, frameSeconds);
   pulsateModel();
   animateBBButton();
 
