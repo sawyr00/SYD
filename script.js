@@ -1257,6 +1257,8 @@ function preloadGregHead() {
 }
 
 async function loadGregHead() {
+  const skullTile = new Image();
+  skullTile.src = 'images/skullwallpaper-single.png';
   const gregLoader = new GLTFLoader();
   const directory = 'models/GregHeadFinalPieced/';
   const [head, lids, fur, playlist] = await Promise.all([
@@ -1266,7 +1268,8 @@ async function loadGregHead() {
     fetch('greg-playlist.json', { cache: 'no-cache' }).then(response => {
       if (!response.ok) throw new Error('Could not load the Greg playlist');
       return response.json();
-    })
+    }),
+    skullTile.decode().catch(() => {})
   ]);
   if (!Array.isArray(playlist) || !playlist.length) throw new Error('The Greg playlist is empty');
   gregPlaylist = playlist;
@@ -1347,6 +1350,50 @@ function updateGregBlink(now, frameSeconds) {
   gregBlinkMixer.update(frameSeconds);
 }
 
+let finishWallpaperTransition;
+function transitionWallpaper(toGreg) {
+  finishWallpaperTransition?.();
+  if (document.body.classList.contains('greg-wallpaper') === toGreg) return;
+
+  const styles = getComputedStyle(document.body);
+  const size = parseFloat(styles.getPropertyValue('--wallpaper-tile-size'));
+  const offset = parseFloat(styles.getPropertyValue('--wallpaper-offset-x'));
+  const startX = ((offset % size) + size) % size - size;
+  const layer = document.createElement('div');
+  layer.className = toGreg ? 'wallpaper-transition to-greg' : 'wallpaper-transition';
+  layer.setAttribute('aria-hidden', 'true');
+  const tiles = [];
+  for (let y = 0; y < window.innerHeight; y += size) {
+    for (let x = startX; x < window.innerWidth; x += size) {
+      if (x + size <= 0) continue;
+      const tile = document.createElement('div');
+      tile.className = 'wallpaper-transition-tile';
+      tile.style.left = `${x}px`;
+      tile.style.top = `${y}px`;
+      tiles.push(tile);
+    }
+  }
+
+  shuffleArray(tiles);
+  const stagger = 4400 / Math.max(1, tiles.length - 1);
+  tiles.forEach((tile, index) => {
+    tile.style.setProperty('--tile-delay', `${index * stagger}ms`);
+  });
+  layer.append(...tiles);
+  document.body.prepend(layer);
+
+  const finish = () => {
+    document.body.classList.toggle('greg-wallpaper', toGreg);
+    layer.remove();
+    window.clearTimeout(timer);
+    window.removeEventListener('resize', finish);
+    finishWallpaperTransition = undefined;
+  };
+  const timer = window.setTimeout(finish, (tiles.length - 1) * stagger + 500);
+  finishWallpaperTransition = finish;
+  window.addEventListener('resize', finish, { once: true });
+}
+
 function updateHeadSwap(now) {
   if (!headSwap) return;
   const halfDuration = 1.5;
@@ -1356,6 +1403,7 @@ function updateHeadSwap(now) {
     model = headSwap.target;
     model.visible = true;
     switchPlaylist(model === gregModel ? gregPlaylist : narbyPlaylist);
+    transitionWallpaper(model === gregModel);
     hoverHeight = model === gregModel ? gregHoverHeight : narbyHoverHeight;
     headSwap.changed = true;
     if (model === gregModel) updateGregVisibility();
