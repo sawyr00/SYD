@@ -187,7 +187,8 @@ let gregModel;
 let narbyHoverHeight;
 let gregHoverHeight;
 let headSwap = null;
-let gregLoading = false;
+let gregLoadPromise;
+let gregSwapRequested = false;
 let gregBlinkMixer;
 let gregBlinkActions = [];
 let gregNextBlink = Infinity;
@@ -346,6 +347,7 @@ loader.load('models/Narby_Head-Web.glb', gltf => {
   camera.position.set(0,0,defaultCameraZ);
   controls.target.set(0,0,0);
   controls.update();
+  window.setTimeout(updateGregVisibility, 0);
 }, undefined, err => {
   console.error('Failed to load main model:', err);
 });
@@ -1131,10 +1133,13 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   btn.style.background      = 'none';               // remove any shorthand background
   btn.style.backgroundColor = 'transparent';        // fully transparent canvas
 
-  // now apply only the PNG (cache‐bust bbBtn)
-  btn.style.backgroundImage = id === 'bbBtn'
-    ? `url("images/${image}?v4")`
-    : `url("images/${image}")`;
+  const version = id === 'bbBtn' ? '?v4' : '';
+  const defaultArt = `url("images/${image}${version}")`;
+  const pressedArt = `url("images/${pressedImage}${version}")`;
+  const pressedPreload = new Image();
+  pressedPreload.src = `images/${pressedImage}${version}`;
+  pressedPreload.decode().catch(() => {});
+  btn.style.backgroundImage = defaultArt;
   btn.style.backgroundRepeat   = 'no-repeat';
   btn.style.backgroundPosition = 'center center';
   btn.style.backgroundSize     = 'contain';
@@ -1144,7 +1149,6 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
     padding: '0',
     margin:  '0',
     border:    'none',
-    outline:   'none',
     cursor:    'pointer',
     position:  'fixed',
     top:       `var(--icon-top, ${topOffset})`,
@@ -1158,17 +1162,27 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   if (toggle) {
     btn.addEventListener('click', () => onClick(btn));
   } else {
-    btn.addEventListener('click', () => {
-      // swap only the image, leave transparency intact
-      btn.style.backgroundImage = id === 'bbBtn'
-        ? `url("images/${pressedImage}?v4")`
-        : `url("images/${pressedImage}")`;
-      onClick();
-      setTimeout(() => {
-        btn.style.backgroundImage = id === 'bbBtn'
-          ? `url("images/${image}?v4")`
-          : `url("images/${image}")`;
+    let releaseTimer;
+    const showPressed = () => {
+      window.clearTimeout(releaseTimer);
+      btn.style.backgroundImage = pressedArt;
+    };
+    const release = () => {
+      window.clearTimeout(releaseTimer);
+      releaseTimer = window.setTimeout(() => {
+        btn.style.backgroundImage = defaultArt;
       }, 200);
+    };
+    btn.addEventListener('pointerdown', event => {
+      if (event.button === 0) showPressed();
+    });
+    for (const type of ['pointerup', 'pointerleave', 'pointercancel']) {
+      btn.addEventListener(type, release);
+    }
+    btn.addEventListener('click', () => {
+      showPressed();
+      onClick();
+      release();
     });
   }
 
@@ -1220,10 +1234,26 @@ function gregAvailable() {
 
 function updateGregVisibility() {
   const available = gregAvailable();
-  bbBtn.style.display = available && (!gregModel || model !== gregModel) ? 'block' : 'none';
+  bbBtn.style.display = available && narbyModel && model !== gregModel ? 'block' : 'none';
   if (!available && gregModel && model === gregModel && !headSwap && !resetInProgress) {
     beginHeadSwap(narbyModel);
   }
+  if (available) preloadGregHead();
+}
+
+function getGregHead() {
+  if (!gregLoadPromise) {
+    gregLoadPromise = loadGregHead().catch(error => {
+      gregLoadPromise = undefined;
+      throw error;
+    });
+  }
+  return gregLoadPromise;
+}
+
+function preloadGregHead() {
+  if (!narbyModel || !gregAvailable() || gregLoadPromise || navigator.connection?.saveData) return;
+  getGregHead().catch(error => console.warn('Greg background load failed:', error));
 }
 
 async function loadGregHead() {
@@ -1231,7 +1261,7 @@ async function loadGregHead() {
   const directory = 'models/GregHeadFinalPieced/';
   const [head, lids, fur, playlist] = await Promise.all([
     gregLoader.loadAsync(directory + 'GregHead-Web.glb'),
-    gregLoader.loadAsync(directory + 'EyeblinkAnimation.glb'),
+    gregLoader.loadAsync(directory + 'Eyeblink-Web.glb'),
     new THREE.TextureLoader().loadAsync('images/greg-eyelid-fur.png'),
     fetch('greg-playlist.json', { cache: 'no-cache' }).then(response => {
       if (!response.ok) throw new Error('Could not load the Greg playlist');
@@ -1281,17 +1311,17 @@ async function loadGregHead() {
 }
 
 async function toggleGregHead() {
-  if (!narbyModel || model !== narbyModel || headSwap || resetInProgress || gregLoading || !gregAvailable()) return;
+  if (!narbyModel || model !== narbyModel || headSwap || resetInProgress || gregSwapRequested || !gregAvailable()) return;
   if (!gregModel) {
-    gregLoading = true;
+    gregSwapRequested = true;
     bbBtn.setAttribute('aria-busy', 'true');
     try {
-      await loadGregHead();
+      await getGregHead();
     } catch (error) {
       console.error('Failed to load Greg:', error);
       return;
     } finally {
-      gregLoading = false;
+      gregSwapRequested = false;
       bbBtn.removeAttribute('aria-busy');
     }
   }

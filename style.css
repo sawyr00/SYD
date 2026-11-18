@@ -13,6 +13,21 @@ canvas {
   display: block;
 }
 
+button[data-icon],
+.head-turn-stick {
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button[data-icon] {
+  touch-action: manipulation;
+}
+
+button[data-icon]:focus-visible {
+  outline: 2px solid #ff4d0c;
+  outline-offset: 3px;
+}
+
 .head-turn-stick {
   position: fixed;
   left: 50%;
