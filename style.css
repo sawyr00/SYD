@@ -2,19 +2,27 @@
 body {
   --wallpaper-tile-size: 400px;
   --wallpaper-offset-x: 0px;
-  --wallpaper-image: url("images/DummyBox_wallpaper-single.png");
   --wallpaper-dim: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4));
   margin: 0;
   overflow: hidden;
   isolation: isolate;
   background-color: black;
+}
+
+.wallpaper-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  --wallpaper-image: url("images/DummyBox_wallpaper-single.png");
   background-image: var(--wallpaper-dim), var(--wallpaper-image);
   background-repeat: repeat;
   background-size: var(--wallpaper-tile-size) var(--wallpaper-tile-size);
   background-position: var(--wallpaper-offset-x) 0;
 }
 
-body.greg-wallpaper,
+.wallpaper-stage.greg-wallpaper,
 .wallpaper-transition.to-greg {
   --wallpaper-image: url("images/skullwallpaper-single.png");
 }
@@ -32,25 +40,29 @@ body.greg-wallpaper,
   position: absolute;
   width: var(--wallpaper-tile-size);
   height: var(--wallpaper-tile-size);
-  background: black;
 }
 
+.wallpaper-transition-tile::before,
 .wallpaper-transition-tile::after {
   content: '';
   position: absolute;
   inset: 0;
+}
+
+.wallpaper-transition-tile::before {
+  background: black;
+  animation: wallpaper-tile-dim 500ms ease var(--tile-delay) both;
+}
+
+.wallpaper-transition-tile::after {
   background-image: var(--wallpaper-dim), var(--wallpaper-image);
   background-size: cover;
   animation: wallpaper-tile-reveal 500ms ease var(--tile-delay) both;
 }
 
-.wallpaper-transition-tile {
-  animation: wallpaper-tile-cover 500ms ease var(--tile-delay) both;
-}
-
-@keyframes wallpaper-tile-cover {
-  0% { opacity: 0; }
-  50%, 100% { opacity: 1; }
+@keyframes wallpaper-tile-dim {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 0.5; }
 }
 
 @keyframes wallpaper-tile-reveal {
@@ -64,6 +76,7 @@ canvas {
   z-index: 0;
 }
 
+[role="button"][data-icon],
 button[data-icon],
 .head-turn-stick {
   -webkit-appearance: none;
@@ -71,11 +84,11 @@ button[data-icon],
   -webkit-tap-highlight-color: transparent;
 }
 
-button[data-icon] {
+[data-icon]:is(button, [role="button"]) {
   touch-action: manipulation;
 }
 
-button[data-icon]:focus-visible {
+[data-icon]:is(button, [role="button"]):focus-visible {
   outline: 2px solid #ff4d0c;
   outline-offset: 3px;
 }
@@ -135,6 +148,11 @@ button[data-icon]:focus-visible {
   pointer-events: none;
 }
 
+#bbBtn {
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 #bbBtn .greg-button-pressed,
 #bbBtn[data-pressed] .greg-button-normal {
   opacity: 0;
@@ -154,11 +172,17 @@ button[data-icon]:focus-visible {
 
 .greg-track-title {
   color: #d9dff5;
-  font: bold clamp(11px, 2.5vw, 18px) / 1.35 Verdana, Geneva, sans-serif;
+  font: bold clamp(12px, 2.7vw, 19px) / 1.35 Verdana, Geneva, sans-serif;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+
+.track-title-strip img,
+.greg-track-title {
+  filter: blur(0.3px);
 }
 
 /* Mobile layout */

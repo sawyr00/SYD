@@ -76,6 +76,10 @@ camera.fov = 30; // less distortion
 camera.updateProjectionMatrix();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+const wallpaperStage = document.createElement('div');
+wallpaperStage.className = 'wallpaper-stage';
+wallpaperStage.setAttribute('aria-hidden', 'true');
+document.body.prepend(wallpaperStage);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
@@ -204,6 +208,7 @@ const maxSpinOffset = 0.1;
 const baseRotationZ = baseRotationVelocity.z;
 let defaultCameraZ = 5;
 let initialModelScale = 0.6;
+const gregBaseScale = initialModelScale * 1.08;
 
 
 const turnVelocity = new THREE.Vector2();
@@ -397,7 +402,7 @@ function smoothResetCamera() {
     );
     model.scale.lerpVectors(
       startScale,
-      new THREE.Vector3(initialModelScale, initialModelScale, initialModelScale),
+      new THREE.Vector3().setScalar(model === gregModel ? gregBaseScale : initialModelScale),
       eased
     );
     model.quaternion.slerpQuaternions(startRotation, frontRotation, eased);
@@ -1119,7 +1124,8 @@ function toggleMute(btn) {
 
 // Button factory
 function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOffset, toggle = false }) {
-  const btn = document.createElement('button');
+  const isGregButton = id === 'bbBtn';
+  const btn = document.createElement(isGregButton ? 'div' : 'button');
   btn.addEventListener('pointerdown', event => {
     if (event.button === 0) playSoundEffect(buttonPressSound);
   });
@@ -1133,8 +1139,7 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   btn.style.background      = 'none';               // remove any shorthand background
   btn.style.backgroundColor = 'transparent';        // fully transparent canvas
 
-  const isGregButton = id === 'bbBtn';
-  const version = isGregButton ? '?v5' : '';
+  const version = isGregButton ? '?v6' : '';
   const defaultArt = `url("images/${image}${version}")`;
   const pressedArt = `url("images/${pressedImage}${version}")`;
   const pressedPreload = new Image();
@@ -1145,6 +1150,16 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   btn.style.backgroundPosition = 'center center';
   btn.style.backgroundSize     = 'contain';
   if (isGregButton) {
+    btn.setAttribute('role', 'button');
+    btn.tabIndex = 0;
+    btn.addEventListener('contextmenu', event => event.preventDefault());
+    btn.addEventListener('keydown', event => {
+      if (event.key === ' ') event.preventDefault();
+      if (event.key === 'Enter' && !event.repeat) btn.click();
+    });
+    btn.addEventListener('keyup', event => {
+      if (event.key === ' ') btn.click();
+    });
     const normalImage = new Image();
     normalImage.src = `images/${image}${version}`;
     normalImage.alt = pressedPreload.alt = '';
@@ -1315,9 +1330,9 @@ async function loadGregHead() {
 
   const greg = new THREE.Group();
   greg.add(aligned);
-  greg.scale.setScalar(initialModelScale);
+  greg.scale.setScalar(gregBaseScale);
   greg.visible = false;
-  gregHoverHeight = size.y * initialModelScale * 0.045;
+  gregHoverHeight = size.y * gregBaseScale * 0.045;
   gregBlinkMixer = new THREE.AnimationMixer(lids.scene);
   gregBlinkActions = lids.animations.map(clip => {
     const action = gregBlinkMixer.clipAction(clip);
@@ -1372,7 +1387,7 @@ function updateGregBlink(now, frameSeconds) {
 let finishWallpaperTransition;
 function transitionWallpaper(toGreg) {
   finishWallpaperTransition?.();
-  if (document.body.classList.contains('greg-wallpaper') === toGreg) return;
+  if (wallpaperStage.classList.contains('greg-wallpaper') === toGreg) return;
 
   const styles = getComputedStyle(document.body);
   const size = parseFloat(styles.getPropertyValue('--wallpaper-tile-size')) || 400;
@@ -1399,13 +1414,10 @@ function transitionWallpaper(toGreg) {
     tile.style.setProperty('--tile-delay', `${index * stagger}ms`);
   });
   layer.append(...tiles);
-  document.body.prepend(layer);
+  wallpaperStage.append(layer);
 
   const finish = () => {
-    document.body.classList.toggle('greg-wallpaper', toGreg);
-    const wallpaper = toGreg ? 'skullwallpaper-single.png' : 'DummyBox_wallpaper-single.png';
-    document.body.style.backgroundImage =
-      `linear-gradient(#0006, #0006), url("images/${wallpaper}")`;
+    wallpaperStage.classList.toggle('greg-wallpaper', toGreg);
     layer.remove();
     window.clearTimeout(timer);
     window.removeEventListener('resize', finish);
@@ -1471,11 +1483,8 @@ let time = 0;
 function pulsateModel() {
   if (!audio.paused && model && !resetInProgress && !headSwap) {
     scaleFactor = 1 + Math.sin(time * 5) * 0.05;
-    model.scale.set(
-      initialModelScale * scaleFactor,
-      initialModelScale * scaleFactor,
-      initialModelScale * scaleFactor
-    );
+    const baseScale = model === gregModel ? gregBaseScale : initialModelScale;
+    model.scale.setScalar(baseScale * scaleFactor);
     time += 0.02;
   }
 }
