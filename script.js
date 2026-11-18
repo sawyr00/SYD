@@ -1133,7 +1133,8 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   btn.style.background      = 'none';               // remove any shorthand background
   btn.style.backgroundColor = 'transparent';        // fully transparent canvas
 
-  const version = id === 'bbBtn' ? '?v4' : '';
+  const isGregButton = id === 'bbBtn';
+  const version = isGregButton ? '?v5' : '';
   const defaultArt = `url("images/${image}${version}")`;
   const pressedArt = `url("images/${pressedImage}${version}")`;
   const pressedPreload = new Image();
@@ -1143,6 +1144,17 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   btn.style.backgroundRepeat   = 'no-repeat';
   btn.style.backgroundPosition = 'center center';
   btn.style.backgroundSize     = 'contain';
+  if (isGregButton) {
+    const normalImage = new Image();
+    normalImage.src = `images/${image}${version}`;
+    normalImage.alt = pressedPreload.alt = '';
+    normalImage.draggable = pressedPreload.draggable = false;
+    normalImage.className = 'greg-button-normal';
+    pressedPreload.className = 'greg-button-pressed';
+    btn.setAttribute('aria-label', 'Switch to Greg');
+    btn.append(normalImage, pressedPreload);
+    btn.style.backgroundImage = 'none';
+  }
   // ─────────────────────────────
 
   Object.assign(btn.style, {
@@ -1165,12 +1177,17 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
     let releaseTimer;
     const showPressed = () => {
       window.clearTimeout(releaseTimer);
-      btn.style.backgroundImage = pressedArt;
+      if (isGregButton) {
+        if (pressedPreload.complete && pressedPreload.naturalWidth) btn.dataset.pressed = 'true';
+      } else {
+        btn.style.backgroundImage = pressedArt;
+      }
     };
     const release = () => {
       window.clearTimeout(releaseTimer);
       releaseTimer = window.setTimeout(() => {
-        btn.style.backgroundImage = defaultArt;
+        if (isGregButton) delete btn.dataset.pressed;
+        else btn.style.backgroundImage = defaultArt;
       }, 200);
     };
     btn.addEventListener('pointerdown', event => {
@@ -1202,7 +1219,9 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   });
   const syncShadow = () => {
     Object.assign(shadow.style, {
-      backgroundImage: btn.style.backgroundImage,
+      backgroundImage: isGregButton
+        ? (btn.dataset.pressed ? pressedArt : defaultArt)
+        : btn.style.backgroundImage,
       display: btn.style.display,
       transform: btn.style.transform
     });
@@ -1210,7 +1229,7 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   syncShadow();
   new MutationObserver(syncShadow).observe(btn, {
     attributes: true,
-    attributeFilter: ['style']
+    attributeFilter: ['style', 'data-pressed']
   });
   document.body.append(shadow, btn);
 
@@ -1356,8 +1375,8 @@ function transitionWallpaper(toGreg) {
   if (document.body.classList.contains('greg-wallpaper') === toGreg) return;
 
   const styles = getComputedStyle(document.body);
-  const size = parseFloat(styles.getPropertyValue('--wallpaper-tile-size'));
-  const offset = parseFloat(styles.getPropertyValue('--wallpaper-offset-x'));
+  const size = parseFloat(styles.getPropertyValue('--wallpaper-tile-size')) || 400;
+  const offset = parseFloat(styles.getPropertyValue('--wallpaper-offset-x')) || 0;
   const startX = ((offset % size) + size) % size - size;
   const layer = document.createElement('div');
   layer.className = toGreg ? 'wallpaper-transition to-greg' : 'wallpaper-transition';
@@ -1384,6 +1403,9 @@ function transitionWallpaper(toGreg) {
 
   const finish = () => {
     document.body.classList.toggle('greg-wallpaper', toGreg);
+    const wallpaper = toGreg ? 'skullwallpaper-single.png' : 'DummyBox_wallpaper-single.png';
+    document.body.style.backgroundImage =
+      `linear-gradient(#0006, #0006), url("images/${wallpaper}")`;
     layer.remove();
     window.clearTimeout(timer);
     window.removeEventListener('resize', finish);
@@ -1402,11 +1424,11 @@ function updateHeadSwap(now) {
     model.visible = false;
     model = headSwap.target;
     model.visible = true;
-    switchPlaylist(model === gregModel ? gregPlaylist : narbyPlaylist);
-    transitionWallpaper(model === gregModel);
     hoverHeight = model === gregModel ? gregHoverHeight : narbyHoverHeight;
     headSwap.changed = true;
+    transitionWallpaper(model === gregModel);
     if (model === gregModel) updateGregVisibility();
+    switchPlaylist(model === gregModel ? gregPlaylist : narbyPlaylist);
   }
   if (elapsed >= 2 * halfDuration) {
     headSwapRig.position.set(0, 0, 0);

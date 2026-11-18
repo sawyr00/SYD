@@ -22,7 +22,7 @@ body.greg-wallpaper,
 .wallpaper-transition {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
   --wallpaper-image: url("images/DummyBox_wallpaper-single.png");
@@ -60,10 +60,13 @@ body.greg-wallpaper,
 
 canvas {
   display: block;
+  position: relative;
+  z-index: 0;
 }
 
 button[data-icon],
 .head-turn-stick {
+  -webkit-appearance: none;
   appearance: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -121,6 +124,24 @@ button[data-icon]:focus-visible {
 
 [data-icon="bbBtn"] {
   --icon-size: 65px;
+}
+
+#bbBtn img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+#bbBtn .greg-button-pressed,
+#bbBtn[data-pressed] .greg-button-normal {
+  opacity: 0;
+}
+
+#bbBtn[data-pressed] .greg-button-pressed {
+  opacity: 1;
 }
 
 .track-title-backdrop {
