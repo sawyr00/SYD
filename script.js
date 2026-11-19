@@ -208,7 +208,7 @@ const maxSpinOffset = 0.1;
 const baseRotationZ = baseRotationVelocity.z;
 let defaultCameraZ = 5;
 let initialModelScale = 0.6;
-const gregBaseScale = initialModelScale * 1.14;
+const gregBaseScale = initialModelScale * 1.20;
 
 
 const turnVelocity = new THREE.Vector2();
@@ -1421,15 +1421,27 @@ function transitionWallpaper(toGreg) {
 
   shuffleArray(tiles);
   const stagger = 4400 / Math.max(1, tiles.length - 1);
-  tiles.forEach((tile, index) => {
-    tile.style.setProperty('--tile-delay', `${index * stagger}ms`);
-  });
   layer.append(...tiles);
   wallpaperStage.append(layer);
+  const started = performance.now();
+  let animationFrame;
+  const reveal = now => {
+    const elapsed = now - started;
+    tiles.forEach((tile, index) => {
+      const progress = Math.max(0, Math.min(1, (elapsed - index * stagger) / 500));
+      const eased = progress * progress * (3 - 2 * progress);
+      tile.style.setProperty('--reveal-radius', `${eased * 120}%`);
+    });
+    if (elapsed < (tiles.length - 1) * stagger + 500) {
+      animationFrame = requestAnimationFrame(reveal);
+    }
+  };
+  animationFrame = requestAnimationFrame(reveal);
 
   const finish = () => {
     wallpaperStage.classList.toggle('greg-wallpaper', toGreg);
     layer.remove();
+    cancelAnimationFrame(animationFrame);
     window.clearTimeout(timer);
     window.removeEventListener('resize', finish);
     finishWallpaperTransition = undefined;

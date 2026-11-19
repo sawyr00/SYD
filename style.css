@@ -40,35 +40,21 @@ body {
   position: absolute;
   width: var(--wallpaper-tile-size);
   height: var(--wallpaper-tile-size);
-  filter: blur(7px);
 }
 
-.wallpaper-transition-tile::before,
 .wallpaper-transition-tile::after {
   content: '';
   position: absolute;
   inset: 0;
 }
 
-.wallpaper-transition-tile::before {
-  background: black;
-  animation: wallpaper-tile-dim 500ms ease var(--tile-delay) both;
-}
-
 .wallpaper-transition-tile::after {
   background-image: var(--wallpaper-dim), var(--wallpaper-image);
   background-size: cover;
-  animation: wallpaper-tile-reveal 500ms ease var(--tile-delay) both;
-}
-
-@keyframes wallpaper-tile-dim {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes wallpaper-tile-reveal {
-  0%, 50% { opacity: 0; }
-  100% { opacity: 1; }
+  -webkit-mask-image: radial-gradient(circle farthest-corner at center,
+    black calc(var(--reveal-radius, 0%) - 18%), transparent var(--reveal-radius, 0%));
+  mask-image: radial-gradient(circle farthest-corner at center,
+    black calc(var(--reveal-radius, 0%) - 18%), transparent var(--reveal-radius, 0%));
 }
 
 canvas {
