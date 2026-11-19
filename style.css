@@ -40,6 +40,7 @@ body {
   position: absolute;
   width: var(--wallpaper-tile-size);
   height: var(--wallpaper-tile-size);
+  filter: blur(7px);
 }
 
 .wallpaper-transition-tile::before,
@@ -139,7 +140,7 @@ button[data-icon],
   --icon-size: 65px;
 }
 
-#bbBtn img {
+#bbBtn canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -151,15 +152,6 @@ button[data-icon],
 #bbBtn {
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-#bbBtn .greg-button-pressed,
-#bbBtn[data-pressed] .greg-button-normal {
-  opacity: 0;
-}
-
-#bbBtn[data-pressed] .greg-button-pressed {
-  opacity: 1;
 }
 
 .track-title-backdrop {
@@ -188,7 +180,7 @@ button[data-icon],
 /* Mobile layout */
 @media (max-width: 600px), (max-width: 950px) and (pointer: coarse) {
   body {
-    --wallpaper-tile-size: 143px;
+    --wallpaper-tile-size: 128px;
     --wallpaper-offset-x: -28px;
     --track-title-band-height: 54px;
     --player-top: clamp(68px, 25vh, calc(100vh - 222px));

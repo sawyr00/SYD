@@ -24,12 +24,20 @@
     "title": "Midsommar - Alice"
   },
   {
+    "path": "audio/comfy%20gaze%20playlist/02%20Purity%20feat.%20Old%20Coke.mp3",
+    "title": "Velvet - Purity feat. Old Coke"
+  },
+  {
     "path": "audio/comfy%20gaze%20playlist/02%20The%20Astral%20Sea.mp3",
     "title": "Caelestra - The Astral Sea"
   },
   {
     "path": "audio/comfy%20gaze%20playlist/03%20-%20Skin%20Game.mp3",
     "title": "Diiv - Skin Game"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/03%20Baby%27s%20Breath.mp3",
+    "title": "deary - Baby's Breath"
   },
   {
     "path": "audio/comfy%20gaze%20playlist/03%20Solstice.mp3",
@@ -94,6 +102,10 @@
   {
     "path": "audio/comfy%20gaze%20playlist/07%20Cold%20Front.mp3",
     "title": "Sleepwalk - Cold Front"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/07%20Pulling%20Stitches.mp3",
+    "title": "bdrmm - Pulling Stitches"
   },
   {
     "path": "audio/comfy%20gaze%20playlist/08%20-%20Evangelizer.mp3",
@@ -192,8 +204,20 @@
     "title": "Loathe - A Sad Cartoon"
   },
   {
+    "path": "audio/comfy%20gaze%20playlist/ALICE%20.mp3",
+    "title": "midsommar - ALICE "
+  },
+  {
     "path": "audio/comfy%20gaze%20playlist/all%20i%20said.mp3",
     "title": "Midrift - all i said"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/Animal%20Shin%20-%20nowhere.mp3",
+    "title": "Animal Shin - nowhere"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/Animal%20Shin%20-%20Time%20will%20Tell.mp3",
+    "title": "Animal Shin - Time will Tell"
   },
   {
     "path": "audio/comfy%20gaze%20playlist/Bardo.mp3",
@@ -236,8 +260,20 @@
     "title": "smush - if we didn't cry"
   },
   {
+    "path": "audio/comfy%20gaze%20playlist/Inyeon.mp3",
+    "title": "yujin - Inyeon"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/iwant.mp3",
+    "title": "animal shin - iwant"
+  },
+  {
     "path": "audio/comfy%20gaze%20playlist/jan_22-d734b84b.mp3",
     "title": "Sleepwalk - Jan 22"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/Leave%20me%20nothing%20%28redux%29.mp3",
+    "title": "whither - Leave me nothing (redux)"
   },
   {
     "path": "audio/comfy%20gaze%20playlist/lick%20the%20star.mp3",
@@ -268,6 +304,14 @@
     "title": "untitled (halo) - On10"
   },
   {
+    "path": "audio/comfy%20gaze%20playlist/She%20Loves%20Him.mp3",
+    "title": "pale - She Loves Him"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/This%27ll%20get%20better.mp3",
+    "title": "whither - This'll get better"
+  },
+  {
     "path": "audio/comfy%20gaze%20playlist/until%20I%20break.mp3",
     "title": "blood pact - until I break"
   },
@@ -282,5 +326,9 @@
   {
     "path": "audio/comfy%20gaze%20playlist/Wish%20I%20Could%20Give%20You%20The%20World.mp3",
     "title": "Whirr - Wish I Could Give You The World"
+  },
+  {
+    "path": "audio/comfy%20gaze%20playlist/Yours%20Again.mp3",
+    "title": "Sofya Wang, sirena - Yours Again"
   }
 ]

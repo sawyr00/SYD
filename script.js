@@ -208,7 +208,7 @@ const maxSpinOffset = 0.1;
 const baseRotationZ = baseRotationVelocity.z;
 let defaultCameraZ = 5;
 let initialModelScale = 0.6;
-const gregBaseScale = initialModelScale * 1.08;
+const gregBaseScale = initialModelScale * 1.14;
 
 
 const turnVelocity = new THREE.Vector2();
@@ -1139,7 +1139,7 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
   btn.style.background      = 'none';               // remove any shorthand background
   btn.style.backgroundColor = 'transparent';        // fully transparent canvas
 
-  const version = isGregButton ? '?v6' : '';
+  const version = isGregButton ? '?v7' : '';
   const defaultArt = `url("images/${image}${version}")`;
   const pressedArt = `url("images/${pressedImage}${version}")`;
   const pressedPreload = new Image();
@@ -1162,12 +1162,23 @@ function createIconButton({ id, image, pressedImage, onClick, topOffset, rightOf
     });
     const normalImage = new Image();
     normalImage.src = `images/${image}${version}`;
-    normalImage.alt = pressedPreload.alt = '';
-    normalImage.draggable = pressedPreload.draggable = false;
-    normalImage.className = 'greg-button-normal';
-    pressedPreload.className = 'greg-button-pressed';
+    const artwork = document.createElement('canvas');
+    artwork.width = artwork.height = 400;
+    artwork.setAttribute('aria-hidden', 'true');
+    const context = artwork.getContext('2d');
+    const drawArtwork = () => {
+      const selected = btn.dataset.pressed && pressedPreload.complete && pressedPreload.naturalWidth
+        ? pressedPreload : normalImage;
+      if (!selected.complete || !selected.naturalWidth) return;
+      context.clearRect(0, 0, 400, 400);
+      context.drawImage(selected, 0, 0, 400, 400);
+    };
+    normalImage.addEventListener('load', drawArtwork);
+    pressedPreload.addEventListener('load', drawArtwork);
+    new MutationObserver(drawArtwork).observe(btn, { attributes: true, attributeFilter: ['data-pressed'] });
+    drawArtwork();
     btn.setAttribute('aria-label', 'Switch to Greg');
-    btn.append(normalImage, pressedPreload);
+    btn.append(artwork);
     btn.style.backgroundImage = 'none';
   }
   // ─────────────────────────────
