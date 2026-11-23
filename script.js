@@ -1018,57 +1018,76 @@ nowPlaying.className = 'track-title-strip';
 Object.assign(nowPlaying.style, {
   position: 'fixed', top: 'var(--track-title-top, 20px)', left: '50%',
   transform: 'translateX(-50%)', width: '80%', overflow: 'hidden',
-  display: 'flex', justifyContent: 'center', alignItems: 'center'
+  display: 'flex', alignItems: 'center'
 });
 document.body.appendChild(nowPlaying);
 const nowText = document.createElement('div');
-Object.assign(nowText.style, {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr)',
-  alignItems: 'center',
-  gap: 'var(--track-title-gap, 40px)',
-  width: '100%',
-  minWidth: '0'
-});
+nowText.className = 'track-title-marquee';
 nowPlaying.appendChild(nowText);
+let titleScroll;
+let titleGeneration = 0;
+let titleResizeTimer;
 
 function getBaseName(path) {
-  return path.split('/').pop().replace(/^\d+ - /, '');
+  return path.split('/').pop().replace(/^d+ - /, '');
 }
 
-function updateNowPlaying() {
+async function updateNowPlaying() {
+  const generation = ++titleGeneration;
+  titleScroll?.cancel();
   const gregTitles = activePlaylist === gregPlaylist;
-  const titles = [-1, 0, 1].map(offset => {
-    const track = activePlaylist[(currentTrack + offset + activePlaylist.length) % activePlaylist.length];
-    const title = document.createElement(gregTitles ? 'span' : 'img');
-    if (gregTitles) {
-      title.className = 'greg-track-title';
-      title.textContent = track.title;
-      title.title = track.title;
-    } else {
-      const trackNumber = track.path.split('/').pop().slice(0, 2);
-      const suffix = offset === 0 ? '-current' : '';
-      title.src = `images/track-titles/${trackNumber}${suffix}.png`;
-      title.alt = getBaseName(track.path);
-    }
-    const fade = offset === 0
-      ? 'none'
-      : `linear-gradient(to ${offset < 0 ? 'right' : 'left'}, transparent, rgba(0, 0, 0, 0.9))`;
-    Object.assign(title.style, {
-      display: 'block',
-      height: 'auto',
-      maxHeight: 'var(--track-title-max-height, 26px)',
-      maxWidth: offset === 0
-        ? 'max(0px, calc(80vw - 2 * var(--track-title-gap, 40px)))'
-        : '100%',
-      justifySelf: ['end', 'center', 'start'][offset + 1],
-      WebkitMaskImage: fade,
-      maskImage: fade
-    });
-    return title;
-  });
-  nowText.replaceChildren(...titles);
+  const track = activePlaylist[currentTrack];
+  const title = document.createElement(gregTitles ? 'span' : 'img');
+  if (gregTitles) {
+    title.className = 'greg-track-title';
+    title.textContent = track.title;
+  } else {
+    const trackNumber = track.path.split('/').pop().slice(0, 2);
+    title.src = `images/track-titles/${trackNumber}-current.png`;
+    title.alt = getBaseName(track.path);
+  }
+  nowPlaying.setAttribute('aria-label', gregTitles ? track.title : getBaseName(track.path));
+  nowText.replaceChildren(title);
+  if (!gregTitles) {
+    try { await title.decode(); } catch { return; }
+  }
+  if (generation !== titleGeneration) return;
+
+  const bounds = nowPlaying.getBoundingClientRect();
+  // Keep the previous title sizing and the same fade span as the two side columns.
+  const styles = getComputedStyle(nowPlaying);
+  const gap = parseFloat(getComputedStyle(nowText).columnGap) || 40;
+  const cap = parseFloat(styles.getPropertyValue('--track-title-max-height')) || 26;
+  if (!gregTitles) {
+    const scale = Math.min(cap / title.naturalHeight, Math.max(1, bounds.width - gap * 2) / title.naturalWidth);
+    title.style.width = `${title.naturalWidth * scale}px`;
+    title.style.height = `${title.naturalHeight * scale}px`;
+  }
+  const width = title.getBoundingClientRect().width;
+  const previousWidth = Math.min(width, Math.max(1, bounds.width - gap * 2));
+  const fade = Math.max(0, (bounds.width - previousWidth) / 2);
+  const mask = `linear-gradient(to right, transparent, black ${fade}px, black calc(100% - ${fade}px), transparent)`;
+  nowPlaying.style.maskImage = mask;
+  nowPlaying.style.webkitMaskImage = mask;
+
+  const period = width + gap;
+  const copies = Math.ceil(bounds.width / period) + 2;
+  for (let i = 1; i < copies; i++) {
+    const copy = title.cloneNode(true);
+    copy.setAttribute('aria-hidden', 'true');
+    if (!gregTitles) copy.alt = '';
+    nowText.appendChild(copy);
+  }
+  titleScroll = nowText.animate(
+    [{ transform: 'translateX(0)' }, { transform: `translateX(-${period}px)` }],
+    { duration: period / 35 * 1000, iterations: Infinity, easing: 'linear' }
+  );
 }
+
+window.addEventListener('resize', () => {
+  clearTimeout(titleResizeTimer);
+  titleResizeTimer = setTimeout(updateNowPlaying, 120);
+});
 // Initial call to show titles
 updateNowPlaying();
 

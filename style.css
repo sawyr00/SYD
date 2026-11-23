@@ -153,9 +153,20 @@ button[data-icon],
   font: bold clamp(12px, 2.7vw, 19px) / 1.35 Verdana, Geneva, sans-serif;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  flex: none;
+}
+
+.track-title-marquee {
+  display: flex;
+  align-items: center;
+  gap: var(--track-title-gap, 40px);
+  width: max-content;
+  flex: none;
+}
+
+.track-title-marquee img {
+  display: block;
+  flex: none;
 }
 
 .track-title-strip img,
