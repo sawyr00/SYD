@@ -1056,7 +1056,8 @@ async function updateNowPlaying() {
   const bounds = nowPlaying.getBoundingClientRect();
   // Keep the previous title sizing and the same fade span as the two side columns.
   const styles = getComputedStyle(nowPlaying);
-  const gap = parseFloat(getComputedStyle(nowText).columnGap) || 40;
+  const gap = parseFloat(styles.getPropertyValue('--track-title-gap')) || 40;
+  const repeatGap = parseFloat(getComputedStyle(nowText).columnGap) || 180;
   const cap = parseFloat(styles.getPropertyValue('--track-title-max-height')) || 26;
   if (!gregTitles) {
     const scale = Math.min(cap / title.naturalHeight, Math.max(1, bounds.width - gap * 2) / title.naturalWidth);
@@ -1070,7 +1071,7 @@ async function updateNowPlaying() {
   nowPlaying.style.maskImage = mask;
   nowPlaying.style.webkitMaskImage = mask;
 
-  const period = width + gap;
+  const period = width + repeatGap;
   const copies = Math.ceil(bounds.width / period) + 2;
   for (let i = 1; i < copies; i++) {
     const copy = title.cloneNode(true);

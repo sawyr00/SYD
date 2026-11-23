@@ -159,7 +159,7 @@ button[data-icon],
 .track-title-marquee {
   display: flex;
   align-items: center;
-  gap: var(--track-title-gap, 40px);
+  gap: 180px;
   width: max-content;
   flex: none;
 }
